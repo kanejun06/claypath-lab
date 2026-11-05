@@ -18,6 +18,7 @@
   --accent:#8FAAF0; --accent2:#3C5390; --warn:#F07A50; --ok:#6CC79A;
   --k-wall:#6B8BE0; --k-frame:#AEB6C2; --k-join:#EFB04A; --k-fill:#4A5F8F; --k-travel:#F0604A; --view-bg:#0F1114; --view-grid:#2A2F37; color-scheme:dark }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:13px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
@@ -113,7 +114,7 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
       <div class="file">
         <button id="btnLoad" type="button">SVGを読み込む</button>
         <input id="fileIn" type="file" accept=".svg,image/svg+xml">
-        <button id="btnSample" type="button" class="sm">サンプル（波線トレイ）</button>
+        <button id="btnSample" type="button" class="sm">サンプル（波線・枠90×60）</button>
         <button id="btnSampleSave" type="button" class="sm">サンプルSVGを保存</button>
       </div>
       <div class="note" id="srcInfo">—</div>
@@ -124,12 +125,21 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
     </section>
 
     <section>
+      <h2>枠</h2>
+      <div class="row"><label for="frameMode">枠の形</label><select id="frameMode"><option value="svg">SVGの閉じた形を使う</option><option value="rect">角（四角）</option><option value="circle">丸</option><option value="none">なし</option></select></div>
+      <div class="row frameRect"><label for="frameW">幅 × 奥行</label><input id="frameW" type="number" step="1" min="10" max="280" value="90"><span class="unit">×</span><input id="frameD" type="number" step="1" min="10" max="280" value="60"><span class="unit">mm</span></div>
+      <div class="row frameRect"><label for="frameR">角の丸み</label><input id="frameR" type="number" step="1" min="0" max="140" value="0"><span class="unit">mm</span></div>
+      <div class="row frameCirc"><label for="frameDia">直径</label><input id="frameDia" type="number" step="1" min="10" max="280" value="80"><span class="unit">mm</span></div>
+      <div class="note">角・丸を選ぶと、アプリが絵の中心に枠をつくり、枠の外の線を切る。SVG には模様だけを枠より大きめに描けばよい（回すなら、枠の一番遠い所まで届く円を覆う大きさ）。SVG の閉じた形はこのとき模様の一部として扱う。</div>
+    </section>
+
+    <section>
       <h2>層</h2>
       <div class="row"><label for="layerH">層高</label><input id="layerH" type="number" step="0.05" min="0.3" max="3" value="0.9"><span class="unit">mm</span></div>
       <div class="row"><label for="height">全体の高さ</label><input id="height" type="number" step="1" min="1" max="300" value="18"><span class="unit">mm</span></div>
       <div class="row"><label for="bottomN">底面の層数</label><input id="bottomN" type="number" step="1" min="0" max="12" value="3"><span class="unit">層</span></div>
       <div class="row"><label for="fillPitch">底面の線間隔（線幅比）</label><input id="fillPitch" type="number" step="0.05" min="0.5" max="2" value="1.0"></div>
-      <div class="note">底面は枠（最も大きい閉じた形）の内側を平行線で埋め、層ごとに向きを90°変える。枠がなければ全体を囲む四角を使う。</div>
+      <div class="note">底面は枠（角・丸、または SVG の最も大きい閉じた形）の内側を平行線で埋め、層ごとに向きを90°変える。枠がなければ全体を囲む四角を使う。</div>
     </section>
 
     <section>
@@ -259,7 +269,7 @@ M82 ;absolute extrusion mode</textarea>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const ids=['pxUnit','scale','step','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const ids=['pxUnit','scale','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
 const P={};
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
@@ -353,9 +363,10 @@ function arcPts(L,pa,pb){ const n=L.pts.length, T=L.T; let f=pb.s-pa.s; if(f<0) 
 function loopFrom(L,p){ const pa=proj(L,p); const n=L.pts.length; const out=[pa.pt]; for(let g=1;g<=n;g++) out.push(L.pts[(pa.seg+g)%n]); out.push(pa.pt); return out.filter((q,i,a)=>i===0||D(q,a[i-1])>1e-4); }
 
 /* ================= sample ================= */
-function sampleSVGText(){ const W=90, d=12, A=5.6, lam=15, nL=5, y0=6.4, H=y0*2+d*(nL-1); const lines=[];
-  for(let i=0;i<nL;i++){ const sg=i%2?-1:1; const pts=[]; for(let x=0;x<=W+1e-9;x+=0.5){ pts.push(`${x.toFixed(2)},${(y0+d*i+sg*A*Math.sin(2*Math.PI*x/lam)).toFixed(3)}`); } lines.push(`  <polyline points="${pts.join(' ')}"/>`); }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H.toFixed(1)}mm" viewBox="0 0 ${W} ${H.toFixed(1)}">\n<g fill="none" stroke="#000" stroke-width="1.5">\n  <rect x="0" y="0" width="${W}" height="${H.toFixed(1)}"/>\n${lines.join('\n')}\n</g>\n</svg>\n`; }
+// sample: a wave field larger than the frame (frame is made in the app: 角 90x60), so it can be rotated without empty corners
+function sampleSVGText(){ const W=120, H=132, cx=60, cy=66, d=12, A=5.6, lam=15; const lines=[];
+  for(let i=-5;i<=5;i++){ const sg=Math.abs(i)%2?-1:1; const pts=[]; for(let x=0;x<=W+1e-9;x+=0.5){ pts.push(`${x.toFixed(2)},${(cy+d*i+sg*A*Math.sin(2*Math.PI*(x-cx)/lam)).toFixed(3)}`); } lines.push(`  <polyline points="${pts.join(' ')}"/>`); }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">\n<!-- ClayLine Lab sample: wave field only. Use frame 角 90 x 60 mm in the app. -->\n<g fill="none" stroke="#000" stroke-width="1.5">\n${lines.join('\n')}\n</g>\n</svg>\n`; }
 
 /* ================= planning ================= */
 function link(a,b,loops){ const d=D(a,b); if(d<0.05) return null;
@@ -382,13 +393,28 @@ function clipToPoly(pts,poly){ const P2=poly.pts, n=P2.length; const out=[]; let
     for(let i=1;i<ts.length;i++){ const t0=ts[i-1],t1=ts[i]; if(t1-t0<1e-9) continue; const mid=at((t0+t1)/2);
       if(inPoly(mid,P2)){ if(!cur.length) cur.push(at(t0)); cur.push(at(t1)); } else flush(); } }
   flush(); return out; }
+function genFrame(){ if(P.frameMode==='rect'){ const w=P.frameW/2, h=P.frameD/2, r=Math.max(0,Math.min(P.frameR,w,h)); let pts;
+    if(r<0.01) pts=[[-w,-h],[w,-h],[w,h],[-w,h]];
+    else { pts=[]; const cs=[[w-r,-h+r,-90],[w-r,h-r,0],[-w+r,h-r,90],[-w+r,-h+r,180]]; const n=Math.max(4,Math.ceil(r*Math.PI/2/0.8)); for(const [x,y,a0] of cs) for(let k=0;k<=n;k++){ const a=(a0+90*k/n)*Math.PI/180; pts.push([x+r*Math.cos(a),y+r*Math.sin(a)]); } }
+    const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
+  if(P.frameMode==='circle'){ const r=P.frameDia/2; const n=Math.max(48,Math.ceil(2*Math.PI*r/0.8)); const pts=[]; for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; pts.push([r*Math.cos(a),r*Math.sin(a)]); } const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
+  return null; }
 const rotCache=new Map();
-function itemsAt(deg){ if(!deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+function itemsAt(deg){ if(P.frameMode!=='svg') return itemsGen(deg||0); if(!deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
   const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c]; const out=[];
   const realLoops=src.items.filter(i=>i.closed); const clip=P.rotTarget==='lines' && realLoops.length ? realLoops.reduce((x,y)=>y.area>x.area?y:x) : null;
   for(const it of src.items){
     if(it.closed){ if(P.rotTarget==='all'){ const L=Object.assign({},it,{pts:it.pts.map(R)}); prepLoop(L); out.push(L); } else out.push(it); continue; }
     const rp=it.pts.map(R); const parts=clip? clipToPoly(rp,clip) : [rp]; for(const pp of parts) out.push(Object.assign({},it,{pts:pp})); }
+  rotCache.set(key,out); return out; }
+// frame made in the app (角・丸・なし): every SVG shape is pattern; pattern is rotated and clipped by the frame
+function itemsGen(deg){ const key='g'+deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+  const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c];
+  let F=genFrame(); if(F && deg && P.rotTarget==='all'){ F=Object.assign({},F,{pts:F.pts.map(R)}); prepLoop(F); }
+  const out=F?[F]:[];
+  for(const it of src.items){ const rp=deg? it.pts.map(R) : it.pts;
+    if(it.closed){ if(!F || rp.every(p=>inPoly(p,F.pts))){ const L=Object.assign({},it,{pts:rp}); prepLoop(L); out.push(L); continue; } }
+    const pp=it.closed? rp.concat([rp[0]]) : rp; const parts=F? clipToPoly(pp,F) : [pp]; for(const q of parts) out.push(Object.assign({},it,{pts:q,closed:false})); }
   rotCache.set(key,out); return out; }
 function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
   const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:swM(L)}); cur=pts[pts.length-1]; } };
@@ -398,8 +424,9 @@ function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filte
   if(P.loops==='last') doLoops();
   return {seq,loops}; }
 function swM(it){ if(!P.useSW||!it.sw) return 1; return Math.min(P.wMax,Math.max(P.wMin,it.sw/P.lineW)); }
-function basePoly(){ const loops=src.items.filter(i=>i.closed); if(loops.length){ return loops.reduce((a,b)=>b.area>a.area?b:a); }
+function basePoly(){ if(P.frameMode==='rect'||P.frameMode==='circle') return genFrame(); const loops=(P.frameMode==='svg'?src.items:itemsAt(0)).filter(i=>i.closed&&P.frameMode==='svg'); if(loops.length){ return loops.reduce((a,b)=>b.area>a.area?b:a); }
   let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const it of src.items) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); }
+  if(P.frameMode==='none'){ const it0=itemsAt(0); mnx=1e9;mny=1e9;mxx=-1e9;mxy=-1e9; for(const it of it0) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); } }
   const h=P.lineW/2; const L={pts:[[mnx-h,mny-h],[mxx+h,mny-h],[mxx+h,mxy+h],[mnx-h,mxy+h]],closed:true,synthetic:true}; prepLoop(L); return L; }
 function hatch(poly,ang,pitch,inset){ const c=Math.cos(ang), s=Math.sin(ang); const R=poly.pts.map(p=>[p[0]*c+p[1]*s, -p[0]*s+p[1]*c]); let y0=1e9,y1=-1e9; for(const p of R){ y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
   const segs=[]; const n=R.length; const first=y0+inset*0.75;
@@ -413,7 +440,11 @@ function planBottom(k,cur){ const base=basePoly(); const seq=[]; const pitch=P.l
 
 function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.max(1,Math.round(P.height/lh)); const nB=Math.min(P.bottomN,nTot); const pts=[]; let cur=[-1e4,-1e4];
   let joinCnt=0,hopCnt=0,frameJoin=0,longJoin=0; const perLayer=[];
-  rotCache.clear(); let prevDeg=null, maxStep=0, rMax=0; for(const it of src.items) if(!it.closed||P.rotTarget==='all') for(const q of it.pts) rMax=Math.max(rMax,Math.hypot(q[0],q[1]));
+  rotCache.clear(); let prevDeg=null, maxStep=0, rMax=0; for(const it of itemsAt(0)) if(!(it.gen) && (!it.closed||P.rotTarget==='all'||P.frameMode!=='svg')) for(const q of it.pts) rMax=Math.max(rMax,Math.hypot(q[0],q[1]));
+  // coverage: does the (unrotated) pattern reach every point of the frame at any angle?
+  let cover=null; { const fr = P.frameMode==='svg'? (src.items.filter(i=>i.closed).reduce((x,y)=>!x||y.area>x.area?y:x,null)) : genFrame();
+    if(fr){ let rf=0; for(const q of fr.pts) rf=Math.max(rf,Math.hypot(q[0],q[1])); const pat=src.items.filter(i=>P.frameMode!=='svg'||!i.closed); let a=1e9,b=-1e9,c2=1e9,d2=-1e9; for(const it of pat) for(const q of it.pts){ a=Math.min(a,q[0]); b=Math.max(b,q[0]); c2=Math.min(c2,q[1]); d2=Math.max(d2,q[1]); }
+      const reach=Math.min(-a,b,-c2,d2); cover={rf,reach,ok:reach>=rf-P.lineW*0.5}; } }
   let degMin=0,degMax=0; for(let k=nB;k<nTot;k++){ const d=angleAt(k-nB); degMin=Math.min(degMin,d); degMax=Math.max(degMax,d); if(prevDeg!==null) maxStep=Math.max(maxStep,Math.abs(d-prevDeg)); prevDeg=d; }
   for(let k=0;k<nTot;k++){ const Z=(k+1)*lh; const isB=k<nB; const deg=isB?0:angleAt(k-nB); const plan=isB? planBottom(k,cur) : planWall(cur,deg); const f=k===0?P.vFirst:P.baseF; let lj=0,lhop=0,lfr=0;
     plan.seq.forEach((sg,si)=>{ const a=sg.pts[0];
@@ -433,14 +464,14 @@ function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.m
   let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const p of pts){ mnx=Math.min(mnx,p.X); mny=Math.min(mny,p.Y); mxx=Math.max(mxx,p.X); mxy=Math.max(mxy,p.Y); }
   bb={mn:[mnx,mny,0],mx:[mxx,mxy,nTot*lh]};
   const wl=perLayer.reduce((m,x)=>({lj:Math.max(m.lj,x.lj),lhop:Math.max(m.lhop,x.lhop),lfr:Math.max(m.lfr,x.lfr)}),{lj:0,lhop:0,lfr:0});
-  path={pts,layers:nTot,nB,lenP,lenT,time,wl,hops:pts.filter(p=>p.travel).length,rot:{degMin,degMax,maxStep,shift:rMax*maxStep*Math.PI/180,rMax}};
+  path={pts,layers:nTot,nB,lenP,lenT,time,wl,hops:pts.filter(p=>p.travel).length,rot:{degMin,degMax,maxStep,shift:rMax*maxStep*Math.PI/180,rMax,cover}};
   checks=analyze(); renderStats(); buildMesh(); }
 
 /* ================= checks (layer independent) ================= */
 function resampleItem(it,step){ const P2=it.closed? it.pts.concat([it.pts[0]]) : it.pts; const out=[]; let s=0; out.push({x:P2[0][0],y:P2[0][1],s:0});
   for(let k=1;k<P2.length;k++){ const a=P2[k-1],b=P2[k]; const L=D(a,b); const n=Math.max(1,Math.ceil(L/step)); for(let j=1;j<=n;j++){ const t=j/n; out.push({x:a[0]+(b[0]-a[0])*t,y:a[1]+(b[1]-a[1])*t,s:s+L*t}); } s+=L; } return out; }
 function segX(a,b,c,d){ const r=[b[0]-a[0],b[1]-a[1]], q=[d[0]-c[0],d[1]-c[1]]; const den=r[0]*q[1]-r[1]*q[0]; if(Math.abs(den)<1e-12) return false; const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den, u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den; const e=1e-6; return t>e&&t<1-e&&u>e&&u<1-e; }
-function analyze(){ const its=src.items, w=P.lineW; const step=Math.min(0.5,w/3); const cell=w*2;
+function analyze(){ const its=itemsAt(0), w=P.lineW; const step=Math.min(0.5,w/3); const cell=w*2;
   // crossings between open lines (and open vs frame interior crossing)
   const segs=[]; its.forEach((it,ii)=>{ const pp=it.closed? it.pts.concat([it.pts[0]]):it.pts; for(let k=1;k<pp.length;k++) segs.push({a:pp[k-1],b:pp[k],ii,k,closed:it.closed}); });
   const g=new Map(); const key=(x,y)=>Math.floor(x/cell)+','+Math.floor(y/cell);
@@ -481,6 +512,8 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   else if(P.rot){ const sh=p.rot.shift; const half=P.lineW/2; const ok=p.rot.rMax>0? (half/p.rot.rMax*180/Math.PI) : 0;
     add(sh>P.lineW? 'bad' : sh>half? 'mid':'', `回転による1層あたりの最大ずれ：${sh.toFixed(2)} mm（中心から ${p.rot.rMax.toFixed(0)} mm の所）。${sh>P.lineW? '線幅を超え、上の線が下の線から外れる。外側ほど交点でしか支えられない' : sh>half? '線幅の半分を超える。外側の線は傾いて積まれる' : '線幅の半分以内で、ほぼ真上に積める'}${sh>half? `。線幅の半分以内にするなら1層 ${ok.toFixed(2)}° 以下` : ''}`);
     if(P.rotTarget==='lines' && src.items.some(i=>i.closed)) add('', '回した線は枠で切っている。判定の交差・接点は回す前の絵で数えている'); }
+  if(P.rot && P.rotTarget==='lines' && p.rot.cover){ const cv=p.rot.cover; add(cv.ok?'':'bad', cv.ok? `模様は回転の中心から ${cv.reach.toFixed(0)} mm まであり、枠の一番遠い所（${cv.rf.toFixed(0)} mm）を覆う。回しても枠の中は抜けない` : `回すと枠の角のあたりが抜ける：模様は中心から ${cv.reach.toFixed(0)} mm まで、枠の一番遠い所は ${cv.rf.toFixed(0)} mm。模様を直径 ${Math.ceil(cv.rf*2)} mm の円を覆う大きさに広げる`); }
+  if(P.frameMode==='svg' && !src.items.some(i=>i.closed)) add('mid','SVGに閉じた形がないので枠なし。「枠」で角か丸を選ぶと、アプリが枠をつくって模様を切る');
   const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>280) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
   if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・use ${src.nUse}・画像 ${src.nImg}（アウトライン化して読み込む）`);
   if(P.useSW){ const sws=src.items.filter(i=>!i.closed).map(i=>i.sw); if(sws.length) add('',`線の太さ：${Math.min(...sws).toFixed(2)}〜${Math.max(...sws).toFixed(2)} mm → 倍率 ×${swM({sw:Math.min(...sws)}).toFixed(2)}〜×${swM({sw:Math.max(...sws)}).toFixed(2)}`); }
@@ -563,6 +596,7 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     `; layer ${lh}mm  height ${P.height}mm  layers ${p.layers} (bottom ${p.nB})  lineW ${P.lineW}  speed ${P.baseF}/${P.vFirst}mm/s`,
     `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
     `; rotate ${P.rot}deg/layer mode ${P.rotMode} swing ${P.rotMax}deg target ${P.rotTarget}`,
+    `; frame ${P.frameMode}${P.frameMode==='rect'?` ${P.frameW}x${P.frameD} r${P.frameR}`:P.frameMode==='circle'?` dia ${P.frameDia}`:''}`,
     `; svg units ${src.unitNote} scale ${P.scale}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   out.push($('gStart').value.trim()); let E=0;
@@ -595,7 +629,10 @@ function loadText(text,name,refit){ try{ svgText=text; svgName=name; src=parseSV
 function readFile(f){ const r=new FileReader(); r.onload=()=>loadText(r.result,f.name,true); r.readAsText(f); }
 $('btnLoad').onclick=()=>$('fileIn').click();
 $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) readFile(f); e.target.value=''; });
-$('btnSample').onclick=()=>loadText(sampleSVGText(),'sample_tray.svg',true);
+function useSampleFrame(){ $('frameMode').value='rect'; $('frameW').value=90; $('frameD').value=60; $('frameR').value=0; frameUI(); }
+function frameUI(){ const m=$('frameMode').value; document.querySelectorAll('.frameRect').forEach(e=>e.hidden=m!=='rect'); document.querySelectorAll('.frameCirc').forEach(e=>e.hidden=m!=='circle'); }
+$('frameMode').addEventListener('change',frameUI);
+$('btnSample').onclick=()=>{ useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true); };
 const view=$('view'); view.addEventListener('dragover',e=>{ e.preventDefault(); view.classList.add('dragging'); }); view.addEventListener('dragleave',e=>{ if(e.target===view||!view.contains(e.relatedTarget)) view.classList.remove('dragging'); });
 view.addEventListener('drop',e=>{ e.preventDefault(); view.classList.remove('dragging'); const f=e.dataTransfer.files[0]; if(f&&/\.svg$/i.test(f.name)) readFile(f); });
 let timer=0; const reparse=new Set(['pxUnit','scale','step']);
@@ -605,7 +642,7 @@ const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?
 const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
 btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cll_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
 if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
-applyTheme(); loadText(sampleSVGText(),'sample_tray.svg',true);
+applyTheme(); useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true);
 window.__cll={gcode:()=>gcode(),get path(){return path;},get checks(){return checks;},get src(){return src;},loadText};
 })();
 </script>
