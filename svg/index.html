@@ -146,6 +146,15 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
     </section>
 
     <section>
+      <h2>層ごとの回転</h2>
+      <div class="row"><label for="rot">1層あたりの回転</label><input id="rot" type="number" step="0.5" min="-90" max="90" value="0"><span class="unit">°</span></div>
+      <div class="row"><label for="rotMode">回り方</label><select id="rotMode"><option value="cont">一方向に回し続ける</option><option value="swing">往復する</option><option value="alt">交互（0°と回転角）</option></select></div>
+      <div class="row"><label for="rotMax">往復の振れ幅</label><input id="rotMax" type="number" step="1" min="0" max="180" value="30"><span class="unit">°</span></div>
+      <div class="row"><label for="rotTarget">回すもの</label><select id="rotTarget"><option value="lines">線だけ（枠は固定、はみ出しは枠で切る）</option><option value="all">枠も一緒に</option></select></div>
+      <div class="note">回転の中心は絵の中心。底面は回さない。「往復」は0°から振れ幅まで1層ずつ回して戻る。「交互」は層ごとに0°と回転角を入れ替える（2枚の絵を交互に積むのと同じで、上の層の線は交点だけで支えられる）。線だけ回すと、枠からはみ出た所は枠で切るので、線の端はいつも枠の上に来る。</div>
+    </section>
+
+    <section>
       <h2>太さ・速度</h2>
       <div class="row"><label class="toggle"><input id="useSW" type="checkbox">SVGの線の太さを押出に反映</label></div>
       <div class="row"><label for="wMin">太さ倍率の範囲</label><input id="wMin" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">〜</span><input id="wMax" type="number" step="0.05" min="1" max="3" value="1.6"></div>
@@ -173,7 +182,8 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
           <dt>大きさ</dt><dd id="sSize">—</dd>
           <dt>層数（底面＋壁）</dt><dd id="sLayers">—</dd>
           <dt>1層の線・枠</dt><dd id="sItems">—</dd>
-          <dt>1層のつなぎ／持ち上げ</dt><dd id="sJoin">—</dd>
+          <dt>回転</dt><dd id="sRot">—</dd>
+          <dt>1層のつなぎ／持ち上げ（最大）</dt><dd id="sJoin">—</dd>
           <dt>押出の経路長</dt><dd id="sLen">—</dd>
           <dt>移動の経路長</dt><dd id="sTrav">—</dd>
         </dl>
@@ -249,7 +259,7 @@ M82 ;absolute extrusion mode</textarea>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const ids=['pxUnit','scale','step','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','lineE','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const ids=['pxUnit','scale','step','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
 const P={};
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
@@ -358,7 +368,29 @@ function greedy(list,cur,allowRev){ const rem=list.slice(); const out=[];
   while(rem.length){ let bi=0,bd=1e18,rv=false; rem.forEach((it,i)=>{ const d0=D(cur,it.pts[0]); if(d0<bd){bd=d0;bi=i;rv=false;} if(allowRev){ const d1=D(cur,it.pts[it.pts.length-1]); if(d1<bd){bd=d1;bi=i;rv=true;} } });
     const it=rem.splice(bi,1)[0]; const pts=rv? it.pts.slice().reverse() : it.pts; out.push({it,pts}); cur=pts[pts.length-1]; }
   return out; }
-function planWall(cur){ const items=src.items; const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
+/* ---- per-layer rotation ---- */
+function angleAt(j){ const r=P.rot; if(!r) return 0;
+  if(P.rotMode==='alt') return (j%2)*r;
+  if(P.rotMode==='swing'){ const A=Math.abs(P.rotMax); if(!A) return 0; const n=Math.max(1,Math.round(A/Math.abs(r))); const ph=j%(2*n); const t=ph<=n?ph:2*n-ph; return Math.sign(r)*Math.min(A,t*Math.abs(r)); }
+  return j*r; }
+function inPoly(p,pts){ let c=false; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ const a=pts[i],b=pts[j]; if(((a[1]>p[1])!==(b[1]>p[1])) && p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+function clipToPoly(pts,poly){ const P2=poly.pts, n=P2.length; const out=[]; let cur=[];
+  const flush=()=>{ if(cur.length>1){ let L=0; for(let k=1;k<cur.length;k++) L+=D(cur[k],cur[k-1]); if(L>0.5) out.push(cur); } cur=[]; };
+  for(let k=1;k<pts.length;k++){ const a=pts[k-1], b=pts[k]; const ts=[0,1]; const r=[b[0]-a[0],b[1]-a[1]];
+    for(let e=0;e<n;e++){ const c=P2[e], d=P2[(e+1)%n]; const q=[d[0]-c[0],d[1]-c[1]]; const den=r[0]*q[1]-r[1]*q[0]; if(Math.abs(den)<1e-12) continue; const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den, u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den; if(t>1e-9&&t<1-1e-9&&u>=-1e-9&&u<=1+1e-9) ts.push(t); }
+    ts.sort((x,y)=>x-y); const at=t=>[a[0]+r[0]*t,a[1]+r[1]*t];
+    for(let i=1;i<ts.length;i++){ const t0=ts[i-1],t1=ts[i]; if(t1-t0<1e-9) continue; const mid=at((t0+t1)/2);
+      if(inPoly(mid,P2)){ if(!cur.length) cur.push(at(t0)); cur.push(at(t1)); } else flush(); } }
+  flush(); return out; }
+const rotCache=new Map();
+function itemsAt(deg){ if(!deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+  const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c]; const out=[];
+  const realLoops=src.items.filter(i=>i.closed); const clip=P.rotTarget==='lines' && realLoops.length ? realLoops.reduce((x,y)=>y.area>x.area?y:x) : null;
+  for(const it of src.items){
+    if(it.closed){ if(P.rotTarget==='all'){ const L=Object.assign({},it,{pts:it.pts.map(R)}); prepLoop(L); out.push(L); } else out.push(it); continue; }
+    const rp=it.pts.map(R); const parts=clip? clipToPoly(rp,clip) : [rp]; for(const pp of parts) out.push(Object.assign({},it,{pts:pp})); }
+  rotCache.set(key,out); return out; }
+function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
   const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:swM(L)}); cur=pts[pts.length-1]; } };
   if(P.loops==='first') doLoops();
   if(P.order==='svg'){ for(const it of opens){ seq.push({kind:'wall',pts:it.pts,m:swM(it)}); cur=it.pts[it.pts.length-1]; } }
@@ -381,7 +413,9 @@ function planBottom(k,cur){ const base=basePoly(); const seq=[]; const pitch=P.l
 
 function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.max(1,Math.round(P.height/lh)); const nB=Math.min(P.bottomN,nTot); const pts=[]; let cur=[-1e4,-1e4];
   let joinCnt=0,hopCnt=0,frameJoin=0,longJoin=0; const perLayer=[];
-  for(let k=0;k<nTot;k++){ const Z=(k+1)*lh; const isB=k<nB; const plan=isB? planBottom(k,cur) : planWall(cur); const f=k===0?P.vFirst:P.baseF; let lj=0,lhop=0,lfr=0;
+  rotCache.clear(); let prevDeg=null, maxStep=0, rMax=0; for(const it of src.items) if(!it.closed||P.rotTarget==='all') for(const q of it.pts) rMax=Math.max(rMax,Math.hypot(q[0],q[1]));
+  let degMin=0,degMax=0; for(let k=nB;k<nTot;k++){ const d=angleAt(k-nB); degMin=Math.min(degMin,d); degMax=Math.max(degMax,d); if(prevDeg!==null) maxStep=Math.max(maxStep,Math.abs(d-prevDeg)); prevDeg=d; }
+  for(let k=0;k<nTot;k++){ const Z=(k+1)*lh; const isB=k<nB; const deg=isB?0:angleAt(k-nB); const plan=isB? planBottom(k,cur) : planWall(cur,deg); const f=k===0?P.vFirst:P.baseF; let lj=0,lhop=0,lfr=0;
     plan.seq.forEach((sg,si)=>{ const a=sg.pts[0];
       if(si===0){ if(!pts.length) pts.push({X:a[0],Y:a[1],Z,travel:true,layer:k,m:1,f,kind:sg.kind});
         else if(D(cur,a)<=P.lineW*1.5) pts.push({X:a[0],Y:a[1],Z,nd:true,layer:k,m:1,f,kind:sg.kind,em:0});
@@ -398,8 +432,8 @@ function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.m
   let lenP=0,lenT=0,time=0; for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); if(b.travel){ lenT+=s+2*P.hop; time+=(s+2*P.hop)/P.travelF; } else { if(!b.nd) lenP+=s; time+=s/b.f; } }
   let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const p of pts){ mnx=Math.min(mnx,p.X); mny=Math.min(mny,p.Y); mxx=Math.max(mxx,p.X); mxy=Math.max(mxy,p.Y); }
   bb={mn:[mnx,mny,0],mx:[mxx,mxy,nTot*lh]};
-  const wl=perLayer.length? perLayer[Math.min(1,perLayer.length-1)] : {lj:0,lhop:0,lfr:0};
-  path={pts,layers:nTot,nB,lenP,lenT,time,wl,hops:pts.filter(p=>p.travel).length};
+  const wl=perLayer.reduce((m,x)=>({lj:Math.max(m.lj,x.lj),lhop:Math.max(m.lhop,x.lhop),lfr:Math.max(m.lfr,x.lfr)}),{lj:0,lhop:0,lfr:0});
+  path={pts,layers:nTot,nB,lenP,lenT,time,wl,hops:pts.filter(p=>p.travel).length,rot:{degMin,degMax,maxStep,shift:rMax*maxStep*Math.PI/180,rMax}};
   checks=analyze(); renderStats(); buildMesh(); }
 
 /* ================= checks (layer independent) ================= */
@@ -432,16 +466,21 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   $('sLayers').textContent=`${p.layers}（${p.nB}＋${p.layers-p.nB}）`;
   $('sItems').textContent=`${c.nOpen} 本・${c.nLoop} 個`;
   $('sJoin').textContent=`${p.wl.lj}（枠上 ${p.wl.lfr}）／${p.wl.lhop}`;
+  $('sRot').textContent= P.rot? `${p.rot.degMin.toFixed(1)}〜${p.rot.degMax.toFixed(1)}°（1層 ${p.rot.maxStep.toFixed(1)}°）` : 'なし';
   $('sLen').textContent=`${(p.lenP/1000).toFixed(2)} m`; $('sTrav').textContent=`${(p.lenT/1000).toFixed(2)} m（${p.hops} 回）`;
-  $('hud').textContent=`${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回`;
+  $('hud').textContent=`${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
   const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
   add(c.cross? 'bad':'', c.cross? `同じ層の中で線が交差：${c.cross} 箇所。交点は二度押しになり盛り上がる` : '同じ層の中の交差なし');
   add('', `接点（線の中心どうしが線幅 ${P.lineW} mm 以内）：約 ${c.contacts} 箇所。セルを閉じる所`);
   if(c.gaps) add('mid', `接しそうで離れている所：約 ${c.gaps} 箇所（最小すき間 ${c.minGap.toFixed(2)} mm）。くっつけたいなら SVG で近づける`);
   if(P.join==='frame' && !c.nLoop) add('mid','枠（閉じた形）がないので、つなぎは直線か移動になる');
   if(P.join==='frame' && c.nLoop && c.freeEnds) add('mid', `枠から ${P.snap} mm より離れた線の端：${c.freeEnds} 個（ここは直線つなぎか移動）`);
-  add(p.wl.lhop>2?'mid':'', `壁の1層あたりの持ち上げ移動：${p.wl.lhop} 回${p.wl.lhop?'（始点・終点で垂れや欠けが出やすい）':'（一筆）'}`);
+  add(p.wl.lhop>2?'mid':'', `壁の1層あたりの持ち上げ移動（最大）：${p.wl.lhop} 回${p.wl.lhop?'（始点・終点で垂れや欠けが出やすい）':'（一筆）'}`);
   if(p.wl.lfr) add('', `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出 ×${P.frameE}（枠が太る量は実機で確認）`);
+  if(P.rot && P.rotMode==='alt'){ add('mid', `交互の回転（${P.rot}°）：上の層の線は下の層の線と交点でしか接しない。交点の間は宙に渡るので、交点の間隔が短い絵にする`); }
+  else if(P.rot){ const sh=p.rot.shift; const half=P.lineW/2; const ok=p.rot.rMax>0? (half/p.rot.rMax*180/Math.PI) : 0;
+    add(sh>P.lineW? 'bad' : sh>half? 'mid':'', `回転による1層あたりの最大ずれ：${sh.toFixed(2)} mm（中心から ${p.rot.rMax.toFixed(0)} mm の所）。${sh>P.lineW? '線幅を超え、上の線が下の線から外れる。外側ほど交点でしか支えられない' : sh>half? '線幅の半分を超える。外側の線は傾いて積まれる' : '線幅の半分以内で、ほぼ真上に積める'}${sh>half? `。線幅の半分以内にするなら1層 ${ok.toFixed(2)}° 以下` : ''}`);
+    if(P.rotTarget==='lines' && src.items.some(i=>i.closed)) add('', '回した線は枠で切っている。判定の交差・接点は回す前の絵で数えている'); }
   const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>280) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
   if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・use ${src.nUse}・画像 ${src.nImg}（アウトライン化して読み込む）`);
   if(P.useSW){ const sws=src.items.filter(i=>!i.closed).map(i=>i.sw); if(sws.length) add('',`線の太さ：${Math.min(...sws).toFixed(2)}〜${Math.max(...sws).toFixed(2)} mm → 倍率 ×${swM({sw:Math.min(...sws)}).toFixed(2)}〜×${swM({sw:Math.max(...sws)}).toFixed(2)}`); }
@@ -523,6 +562,7 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
   const out=[`; ClayLine Lab  ${new Date().toISOString().slice(0,16)}  source ${svgName}`,
     `; layer ${lh}mm  height ${P.height}mm  layers ${p.layers} (bottom ${p.nB})  lineW ${P.lineW}  speed ${P.baseF}/${P.vFirst}mm/s`,
     `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
+    `; rotate ${P.rot}deg/layer mode ${P.rotMode} swing ${P.rotMax}deg target ${P.rotTarget}`,
     `; svg units ${src.unitNote} scale ${P.scale}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   out.push($('gStart').value.trim()); let E=0;
