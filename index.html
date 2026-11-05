@@ -37,6 +37,10 @@ header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bott
 .view canvas{display:block;width:100%;height:100%;touch-action:none}
 .hud{position:absolute;left:10px;top:10px;font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-variant-numeric:tabular-nums}
 .hud b{font-weight:500;color:var(--warn)}
+.export{position:absolute;right:10px;bottom:10px;width:340px;max-height:calc(100% - 64px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin;z-index:2}
+.export .exphead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg2)}
+.export .msg:empty{display:none}
+.export details[open]{border-top:1px solid var(--line);padding-top:4px}
 .legend{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--fg2);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
 .legend .bar{width:80px;height:8px;border-radius:2px;background:linear-gradient(90deg,var(--clay-slow),var(--clay-fast))}
 .legend select{font:inherit;font-size:11px;padding:1px 3px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
@@ -50,9 +54,8 @@ header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bott
 .info .warns{gap:3px}
 .info details .note{margin-top:4px}
 #btnInfo[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
-@media (max-width:760px){ .viewbtns{top:44px;left:10px;right:auto} .info{left:10px;right:10px;top:78px;width:auto;max-height:calc(100% - 78px - 120px)} }
 .viewbtns{position:absolute;right:10px;top:10px;display:flex;gap:6px}
-.playbar{position:absolute;left:10px;right:10px;bottom:44px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px}
+.playbar{position:absolute;left:10px;right:360px;bottom:44px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px}
 .playbar input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
 .playbar select{font:inherit;font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .playbar .t{flex:0 0 44ch;width:44ch;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
@@ -101,6 +104,16 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
 }
 section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;pointer-events:none}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+/* narrow screens: stack the overlays (kept last so it wins over the base rules) */
+@media (max-width:760px){
+  .viewbtns{top:44px;left:10px;right:auto}
+  .info{left:10px;right:10px;top:78px;width:auto;max-height:calc(100% - 78px - 190px)}
+  .export{left:10px;right:10px;width:auto}
+  .legend{bottom:96px}
+  .playbar{right:10px;bottom:130px;flex-wrap:nowrap}
+  .playbar .t{display:none}
+  .playbar input[type=range]{flex:1 1 auto}
+}
 </style>
 
 <header>
@@ -185,50 +198,6 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="row"><button id="btnReset" type="button" class="sm">変調をすべて戻す</button></div>
     </section>
 
-    <section>
-      <h2>G-code</h2>
-      <div class="exp">
-        <input type="text" id="fname" value="claypath_40x100" aria-label="ファイル名">
-        <button class="primary" id="btnSave" type="button">保存</button>
-        <button id="btnCopy" type="button">コピー</button>
-      </div>
-      <div class="msg" id="msg"></div>
-      <details>
-        <summary>押出・開始/終了コードの設定</summary>
-        <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
-        <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
-        <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
-        <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
-        <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
-        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（オフセット6mm）</label></div>
-        <div class="note" style="margin-top:6px">開始コード（成功実績のある Cura 5.12 プロファイル「3040_case1」から転記）</div>
-        <textarea id="gStart" rows="8">G90 ;absolute positioning
-G92 Z0 ;current needle height is Z zero
-G21 ;metric values
-M82 ;absolute extrusion
-M107 ;fan off
-G28 X0 Y0 ;home X and Y only. never home Z
-G92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print
-G1 Z15.0 F2400 ;lower the platform
-G92 E0 ;reset extruder
-G1 F200 E3 ;prime 3mm
-M117 Printing...
-M106 S255 ;fan full
-G92 E0
-G1 F1800 E-1 ;retract</textarea>
-        <div class="note" style="margin-top:6px">終了コード</div>
-        <textarea id="gEnd" rows="6">M107
-G91 ;relative
-G1 E-1 F300
-G1 Z+20
-G90 ;back to absolute
-G28 X0 Y0
-M106 S0 ;fan off
-M84 ;disable motors
-M82 ;absolute extrusion mode</textarea>
-      </details>
-      <div class="note">Eは「線幅×層高×倍率÷フィラメント断面」で各点ごとに書き出す（スクリュー押出前提）。XYは「ベッド中心」を足して書き出す（Cura出力と同じ座標系）。保存名が .txt になった場合は .gcode に直してSDへ。</div>
-    </section>
   </div>
 
   <!-- ========== CENTER: 3D ========== -->
@@ -266,6 +235,51 @@ M82 ;absolute extrusion mode</textarea>
       <select id="playSpd" aria-label="再生速度"><option value="1">1×</option><option value="5">5×</option><option value="20" selected>20×</option><option value="60">60×</option><option value="200">200×</option></select>
       <input type="range" id="scrub" min="0" max="1000" value="1000" aria-label="進行位置">
       <span class="t" id="playT">—</span>
+    </div>
+    <div class="export" id="export">
+      <div class="exphead">G-code</div>
+      <div class="exp">
+        <input type="text" id="fname" value="claypath_40x100" aria-label="ファイル名">
+        <button class="primary" id="btnSave" type="button">保存</button>
+        <button id="btnCopy" type="button">コピー</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <details>
+        <summary>押出・開始/終了コードの設定</summary>
+        <div class="note" style="margin:4px 0 6px">Eは「線幅×層高×倍率÷フィラメント断面」で各点ごとに書き出す（スクリュー押出前提）。XYは「ベッド中心」を足して書き出す（Cura出力と同じ座標系）。保存名が .txt になった場合は .gcode に直してSDへ。</div>
+        <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
+        <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
+        <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
+        <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
+        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（オフセット6mm）</label></div>
+        <div class="note" style="margin-top:6px">開始コード（成功実績のある Cura 5.12 プロファイル「3040_case1」から転記）</div>
+        <textarea id="gStart" rows="8">G90 ;absolute positioning
+G92 Z0 ;current needle height is Z zero
+G21 ;metric values
+M82 ;absolute extrusion
+M107 ;fan off
+G28 X0 Y0 ;home X and Y only. never home Z
+G92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print
+G1 Z15.0 F2400 ;lower the platform
+G92 E0 ;reset extruder
+G1 F200 E3 ;prime 3mm
+M117 Printing...
+M106 S255 ;fan full
+G92 E0
+G1 F1800 E-1 ;retract</textarea>
+        <div class="note" style="margin-top:6px">終了コード</div>
+        <textarea id="gEnd" rows="6">M107
+G91 ;relative
+G1 E-1 F300
+G1 Z+20
+G90 ;back to absolute
+G28 X0 Y0
+M106 S0 ;fan off
+M84 ;disable motors
+M82 ;absolute extrusion mode</textarea>
+      </details>
+
     </div>
     <div class="legend"><select id="colorBy" aria-label="色の意味"><option value="w">色：太さ</option><option value="v">色：速度</option></select><span id="legLo">太い</span><span class="bar"></span><span id="legHi">細い</span><span class="bad"></span><span>警告</span></div>
   </div>
@@ -503,7 +517,7 @@ function colorOf(c){ return new THREE.Color(c); }
 function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 // free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
-function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?96:130; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
+function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:200; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
 function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); camera.aspect=w/h; const a=freeArea(); camera.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); camera.updateProjectionMatrix(); }
 function render(){ resize(); updateCam(); renderer.render(scene,camera); }
 // orbit
