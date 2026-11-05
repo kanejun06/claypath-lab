@@ -502,7 +502,9 @@ function css(v){ return getComputedStyle(document.documentElement).getPropertyVa
 function colorOf(c){ return new THREE.Color(c); }
 function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
-function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+// free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
+function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?96:130; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
+function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); camera.aspect=w/h; const a=freeArea(); camera.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); camera.updateProjectionMatrix(); }
 function render(){ resize(); updateCam(); renderer.render(scene,camera); }
 // orbit
 let drag=null; glc.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}; glc.setPointerCapture(e.pointerId); });
@@ -514,8 +516,9 @@ glc.addEventListener('wheel',e=>{ e.preventDefault(); sph.r=Math.min(1500,Math.m
 // pinch
 let pinch=null; glc.addEventListener('touchstart',e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); },{passive:true});
 glc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); sph.r=Math.min(1500,Math.max(20,sph.r*pinch/d)); pinch=d; drag=null; render(); } },{passive:true});
-function fit(){ if(!bb) return; const cx=(bb.mn[0]+bb.mx[0])/2, cy=(bb.mn[1]+bb.mx[1])/2; target.set(cx,cy,bb.mx[2]/2); const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1],bb.mx[2]); sph.r=ext*2.2; render(); }
-$('btnFit').onclick=()=>{ sph.th=0.9; sph.ph=1.0; fit(); }; $('btnTop').onclick=()=>{ sph.ph=0.05; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
+function fit(){ if(!bb) return; const cx=(bb.mn[0]+bb.mx[0])/2, cy=(bb.mn[1]+bb.mx[1])/2; target.set(cx,cy,bb.mx[2]/2); const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1],bb.mx[2]); const a=freeArea(); const t=Math.tan(camera.fov*Math.PI/360); const H=bb.mx[2]-bb.mn[2], W=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]);
+  if(a.w>0&&a.ah>50&&a.aw>50){ const fill=0.82; const top=sph.ph<0.3; const vh= top? W : H*Math.sin(sph.ph)+W*Math.abs(Math.cos(sph.ph)); sph.r=Math.max(vh*a.h/(2*t*fill*a.ah), W*a.h/(2*t*fill*a.aw))+W/2; } else sph.r=ext*2.2; render(); }
+$('btnFit').onclick=()=>{ sph.th=0.9; sph.ph=1.38; fit(); }; $('btnTop').onclick=()=>{ sph.ph=0.05; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
 
 const CH=12000; // points per chunk -> 48k vertices, keeps every index under 65535 (Uint16)
 let meshes=[];
@@ -594,7 +597,7 @@ function loadBuffer(buf,name){ tris=parseSTL(buf); bb=bounds(tris); const dx=bb.
   $('modelInfo').textContent=`${name}：${(tris.length/9).toLocaleString()} 面、${dx.toFixed(1)}×${dy.toFixed(1)}×${dz.toFixed(1)} mm`;
   if(bb.mn[2]!==0){ for(let i=2;i<tris.length;i+=3) tris[i]-=bb.mn[2]; bb=bounds(tris); }
   $('fname').value=name.replace(/\.stl$/i,'').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_')||'claypath';
-  reslice(); sph.th=0.9; sph.ph=1.0; fit(); }
+  reslice(); sph.th=0.9; sph.ph=1.38; fit(); }
 $('btnLoad').onclick=()=>$('fileIn').click();
 $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>loadBuffer(r.result,f.name); r.readAsArrayBuffer(f); e.target.value=''; });
 function loadSample(){ const bin=atob(SAMPLE_B64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); loadBuffer(u8.buffer,'sample_40x100.stl'); }
@@ -613,7 +616,7 @@ const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?
 const dim=()=>{ for(const [id,sec] of [['onF','curveF'],['onV','curveV'],['onXY','curveXY'],['onZ','curveZ']]) $(sec).closest('section').classList.toggle('off',!$(id).checked); };
 ['onF','onV','onXY','onZ'].forEach(id=>$(id).addEventListener('change',dim)); dim();
 const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cpl_info',on?'1':'0'); }catch(e){} };
-btnInfo.onclick=()=>setInfo(infoEl.hidden); { let v=null; try{ v=localStorage.getItem('cpl_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
+btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cpl_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
 applyTheme(); loadSample();
 // demo preset so the first view shows what the tool does
 $('xyAmp').value=1.2; $('xyN').value=10; $('xyTw').value=3; $('fAmp').value=0.25; $('fN').value=10; $('fTw').value=3; ['xyAmp','xyN','xyTw','fAmp','fN','fTw'].forEach(fmt2); cXY.set([0.1,0.5,1,0.7,0.2]); recompute();
