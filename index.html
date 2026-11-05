@@ -24,6 +24,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
 h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.01em}
 .sub{color:var(--fg2);font-size:12px}
+header a.xlink{color:var(--accent);text-decoration:none;margin-left:auto}
+header a.xlink:hover{text-decoration:underline}
 header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bottom:10px}
 .app{display:grid;grid-template-columns:340px minmax(0,1fr);gap:12px;height:calc(100% - 46px);min-height:560px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
@@ -119,6 +121,7 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
 <header>
   <h1>ClayPath Lab</h1>
   <span class="sub">STLをVaseモードで切り、太さ・速度・XY・Zの変調で経路に表情をつける。磁器土／SYNO-SOURCE-3040向け</span>
+  <a class="sub xlink" href="svg/">SVGの線から描く → ClayLine Lab</a>
 </header>
 
 <div class="app">
