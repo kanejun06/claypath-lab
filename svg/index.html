@@ -150,9 +150,12 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
       <div class="row"><label for="joinMax">枠に沿うつなぎの最大長</label><input id="joinMax" type="number" step="1" min="0" max="200" value="30"><span class="unit">mm</span></div>
       <div class="row"><label for="lineMax">直線つなぎの最大長</label><input id="lineMax" type="number" step="0.5" min="0" max="100" value="5"><span class="unit">mm</span></div>
       <div class="row"><label for="snap">枠に乗るとみなす距離</label><input id="snap" type="number" step="0.1" min="0" max="10" value="2"><span class="unit">mm</span></div>
-      <div class="row"><label for="frameE">枠の上のつなぎの押出</label><input id="frameE" type="number" step="0.05" min="0" max="1.5" value="0.4"><span class="unit">倍</span></div>
+      <div class="row"><label for="frameE">枠の上のつなぎの押出</label><input id="frameE" type="number" step="0.05" min="0" max="1.5" value="0"><span class="unit">倍</span></div>
+      <div class="row"><label class="toggle"><input id="glideRet" type="checkbox" checked>押出なしで滑らせる間はリトラクト</label></div>
+      <div class="row"><label for="endOv">線の端と枠の重なり</label><input id="endOv" type="number" step="5" min="0" max="100" value="50"><span class="unit">%</span></div>
       <div class="row"><label for="lineE">直線つなぎの押出</label><input id="lineE" type="number" step="0.05" min="0" max="1.5" value="1.0"><span class="unit">倍</span></div>
-      <div class="note">「枠に沿って押出」は、線の端と次の線の端が両方とも枠の近くにあるとき、枠の上をなぞって次の線へ行く（すでに枠があるので押出は控えめ）。条件に合わなければ直線（中に新しい壁ができるので短いときだけ）、それも長すぎれば持ち上げて移動する。「近い順」は前の層の終点から始めるので、層ごとに向きが自然に入れ替わる。</div>
+      <div class="note">線の端と枠の重なりは、線の端の粘土が枠の粘土にかぶる幅（線幅比）。100%で線の端が枠の中心線まで行き（重なりすぎてはみ出しやすい）、0%で枠の内側の縁で止まる。</div>
+      <div class="note">「枠に沿って押出」は、線の端と次の線の端が両方とも枠の近くにあるとき、枠の上をなぞって次の線へ行く（既定は押出0：ノズルを下げたまま枠の上を滑らせるだけで、粘土を足さない）。条件に合わなければ直線（中に新しい壁ができるので短いときだけ）、それも長すぎれば持ち上げて移動する。「近い順」は前の層の終点から始めるので、層ごとに向きが自然に入れ替わる。</div>
     </section>
 
     <section>
@@ -257,7 +260,7 @@ M82 ;absolute extrusion mode</textarea>
     <div class="legend" id="legend">
       <span><i style="background:var(--k-wall)"></i>壁の線</span>
       <span><i style="background:var(--k-frame)"></i>枠</span>
-      <span><i style="background:var(--k-join)"></i>つなぎ</span>
+      <span><i style="background:var(--k-join);height:2px"></i>つなぎ（押出なし）</span>
       <span><i style="background:var(--k-fill)"></i>底面</span>
       <label><input type="checkbox" id="showTravel" checked><i style="background:var(--k-travel);height:2px"></i>移動</label>
     </div>
@@ -269,7 +272,7 @@ M82 ;absolute extrusion mode</textarea>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const ids=['pxUnit','scale','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const ids=['pxUnit','scale','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
 const P={};
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
@@ -371,7 +374,7 @@ function sampleSVGText(){ const W=120, H=132, cx=60, cy=66, d=12, A=5.6, lam=15;
 /* ================= planning ================= */
 function link(a,b,loops){ const d=D(a,b); if(d<0.05) return null;
   if(P.join==='frame'){ let best=null; for(const L of loops){ const pa=proj(L,a), pb=proj(L,b); if(pa.d<=P.snap && pb.d<=P.snap){ const r=arcPts(L,pa,pb); const len=r.len+pa.d+pb.d; if(len<=P.joinMax && (!best||len<best.len)) best={len,pts:[a,pa.pt,...r.pts,pb.pt,b]}; } }
-    if(best) return {kind:'join',em:P.frameE,pts:best.pts.filter((q,i,arr)=>i===0||D(q,arr[i-1])>1e-4),onFrame:true}; }
+    if(best) return {kind:'join',em:P.frameE,glide:P.frameE<=0,pts:best.pts.filter((q,i,arr)=>i===0||D(q,arr[i-1])>1e-4),onFrame:true}; }
   if(P.join!=='hop' && d<=P.lineMax) return {kind:'join',em:P.lineE,pts:[a,b]};
   return 'travel'; }
 // order a set of polylines greedily from cur; returns [{pts}]
@@ -399,13 +402,23 @@ function genFrame(){ if(P.frameMode==='rect'){ const w=P.frameW/2, h=P.frameD/2,
     const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
   if(P.frameMode==='circle'){ const r=P.frameDia/2; const n=Math.max(48,Math.ceil(2*Math.PI*r/0.8)); const pts=[]; for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; pts.push([r*Math.cos(a),r*Math.sin(a)]); } const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
   return null; }
+// shorten line ends that sit on (or near) the frame so the end bead overlaps the frame bead by endOv% of the line width
+function trimStart(pts,t){ if(t<=0) return pts; let k=1, acc=0; while(k<pts.length){ const L=D(pts[k-1],pts[k]); if(acc+L>t){ const u=(t-acc)/L; const a=pts[k-1],b=pts[k]; return [[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u]].concat(pts.slice(k)); } acc+=L; k++; } return null; }
+function trimToFrame(parts,frames){ const t=P.lineW*(1-P.endOv/100); if(!frames.length) return parts; const out=[];
+  for(let pts of parts){ for(const end of [0,1]){ if(!pts) break; const p=end? pts[pts.length-1] : pts[0]; let dmin=1e9; for(const F of frames) dmin=Math.min(dmin,proj(F,p).d);
+      if(dmin<t-1e-6){ let q = end? pts.slice().reverse() : pts; const dist=pp=>{ let m=1e9; for(const F of frames) m=Math.min(m,proj(F,pp).d); return m; };
+        // find the arc length along the line at which the distance to the frame reaches t (lines may meet the frame at a slant)
+        let lo=0, hi=Math.min(t*12, 25); let cand=trimStart(q,hi); if(cand && dist(cand[0])<t) lo=hi; else { for(let it=0;it<24;it++){ const md=(lo+hi)/2; const c=trimStart(q,md); if(c && dist(c[0])<t) lo=md; else hi=md; } }
+        q=trimStart(q,hi); pts = q? (end? q.reverse() : q) : null; } }
+    if(pts && pts.length>1){ let L=0; for(let k=1;k<pts.length;k++) L+=D(pts[k],pts[k-1]); if(L>0.5) out.push(pts); } }
+  return out; }
 const rotCache=new Map();
-function itemsAt(deg){ if(P.frameMode!=='svg') return itemsGen(deg||0); if(!deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+function itemsAt(deg){ if(P.frameMode!=='svg') return itemsGen(deg||0); deg=deg||0; if(!src.items.some(i=>i.closed) && !deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
   const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c]; const out=[];
   const realLoops=src.items.filter(i=>i.closed); const clip=P.rotTarget==='lines' && realLoops.length ? realLoops.reduce((x,y)=>y.area>x.area?y:x) : null;
   for(const it of src.items){
     if(it.closed){ if(P.rotTarget==='all'){ const L=Object.assign({},it,{pts:it.pts.map(R)}); prepLoop(L); out.push(L); } else out.push(it); continue; }
-    const rp=it.pts.map(R); const parts=clip? clipToPoly(rp,clip) : [rp]; for(const pp of parts) out.push(Object.assign({},it,{pts:pp})); }
+    const rp=it.pts.map(R); const parts=trimToFrame(clip&&deg? clipToPoly(rp,clip) : [rp], realLoops.map(L=>P.rotTarget==='all'&&deg? out.find(o=>o.id===L.id)||L : L)); for(const pp of parts) out.push(Object.assign({},it,{pts:pp})); }
   rotCache.set(key,out); return out; }
 // frame made in the app (角・丸・なし): every SVG shape is pattern; pattern is rotated and clipped by the frame
 function itemsGen(deg){ const key='g'+deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
@@ -414,7 +427,7 @@ function itemsGen(deg){ const key='g'+deg.toFixed(4)+P.rotTarget; if(rotCache.ha
   const out=F?[F]:[];
   for(const it of src.items){ const rp=deg? it.pts.map(R) : it.pts;
     if(it.closed){ if(!F || rp.every(p=>inPoly(p,F.pts))){ const L=Object.assign({},it,{pts:rp}); prepLoop(L); out.push(L); continue; } }
-    const pp=it.closed? rp.concat([rp[0]]) : rp; const parts=F? clipToPoly(pp,F) : [pp]; for(const q of parts) out.push(Object.assign({},it,{pts:q,closed:false})); }
+    const pp=it.closed? rp.concat([rp[0]]) : rp; const parts=F? trimToFrame(clipToPoly(pp,F),[F]) : [pp]; for(const q of parts) out.push(Object.assign({},it,{pts:q,closed:false})); }
   rotCache.set(key,out); return out; }
 function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
   const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:swM(L)}); cur=pts[pts.length-1]; } };
@@ -455,12 +468,12 @@ function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.m
         if(isB){ const dd=D(cur,a); L = dd<0.05? null : (dd<=plan.fillPitch*2.5 ? {kind:'fill',em:1,pts:[cur,a]} : 'travel'); }
         else L=link(cur,a,plan.loops);
         if(L==='travel'){ pts.push({X:a[0],Y:a[1],Z,travel:true,layer:k,m:1,f,kind:sg.kind}); lhop++; }
-        else if(L){ for(let q=1;q<L.pts.length;q++) pts.push({X:L.pts[q][0],Y:L.pts[q][1],Z,layer:k,m:1,f,em:L.em,kind:L.kind}); if(!isB){ lj++; if(L.onFrame) lfr++; } } }
+        else if(L){ for(let q=1;q<L.pts.length;q++) pts.push({X:L.pts[q][0],Y:L.pts[q][1],Z,layer:k,m:1,f,em:L.em,kind:L.kind,glide:!!L.glide}); if(!isB){ lj++; if(L.onFrame) lfr++; } } }
       for(let q=1;q<sg.pts.length;q++) pts.push({X:sg.pts[q][0],Y:sg.pts[q][1],Z,layer:k,m:sg.m,f,em:1,kind:sg.kind});
       cur=sg.pts[sg.pts.length-1]; });
     if(!isB){ perLayer.push({lj,lhop,lfr}); } }
   // stats
-  let lenP=0,lenT=0,time=0; for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); if(b.travel){ lenT+=s+2*P.hop; time+=(s+2*P.hop)/P.travelF; } else { if(!b.nd) lenP+=s; time+=s/b.f; } }
+  let lenP=0,lenT=0,time=0; for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); if(b.travel){ lenT+=s+2*P.hop; time+=(s+2*P.hop)/P.travelF; } else { if(!b.nd && !b.glide) lenP+=s; time+=s/b.f; } }
   let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const p of pts){ mnx=Math.min(mnx,p.X); mny=Math.min(mny,p.Y); mxx=Math.max(mxx,p.X); mxy=Math.max(mxy,p.Y); }
   bb={mn:[mnx,mny,0],mx:[mxx,mxy,nTot*lh]};
   const wl=perLayer.reduce((m,x)=>({lj:Math.max(m.lj,x.lj),lhop:Math.max(m.lhop,x.lhop),lfr:Math.max(m.lfr,x.lfr)}),{lj:0,lhop:0,lfr:0});
@@ -507,7 +520,8 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   if(P.join==='frame' && !c.nLoop) add('mid','枠（閉じた形）がないので、つなぎは直線か移動になる');
   if(P.join==='frame' && c.nLoop && c.freeEnds) add('mid', `枠から ${P.snap} mm より離れた線の端：${c.freeEnds} 個（ここは直線つなぎか移動）`);
   add(p.wl.lhop>2?'mid':'', `壁の1層あたりの持ち上げ移動（最大）：${p.wl.lhop} 回${p.wl.lhop?'（始点・終点で垂れや欠けが出やすい）':'（一筆）'}`);
-  if(p.wl.lfr) add('', `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出 ×${P.frameE}（枠が太る量は実機で確認）`);
+  if(p.wl.lfr) add(P.frameE>0.2?'mid':'', P.frameE>0? `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出 ×${P.frameE}。同じ所に粘土を足すので枠が太り、外へはみ出しやすい` : `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出なしで滑らせる${P.glideRet?'（その間リトラクト）':''}`);
+  add(P.endOv>75?'mid':'', `線の端と枠の重なり：${P.endOv}%（線の端は枠の中心線から ${(P.lineW*(1-P.endOv/100)).toFixed(2)} mm 手前で止まる）${P.endOv>75?'。重なりが大きく、端の粘土が枠を押し出しやすい':''}`);
   if(P.rot && P.rotMode==='alt'){ add('mid', `交互の回転（${P.rot}°）：上の層の線は下の層の線と交点でしか接しない。交点の間は宙に渡るので、交点の間隔が短い絵にする`); }
   else if(P.rot){ const sh=p.rot.shift; const half=P.lineW/2; const ok=p.rot.rMax>0? (half/p.rot.rMax*180/Math.PI) : 0;
     add(sh>P.lineW? 'bad' : sh>half? 'mid':'', `回転による1層あたりの最大ずれ：${sh.toFixed(2)} mm（中心から ${p.rot.rMax.toFixed(0)} mm の所）。${sh>P.lineW? '線幅を超え、上の線が下の線から外れる。外側ほど交点でしか支えられない' : sh>half? '線幅の半分を超える。外側の線は傾いて積まれる' : '線幅の半分以内で、ほぼ真上に積める'}${sh>half? `。線幅の半分以内にするなら1層 ${ok.toFixed(2)}° 以下` : ''}`);
@@ -550,18 +564,22 @@ function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispos
   const pts=path.pts, n=pts.length, lh=P.layerH;
   const kc={wall:colorOf(css('--k-wall')),frame:colorOf(css('--k-frame')),join:colorOf(css('--k-join')),fill:colorOf(css('--k-fill'))};
   const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0.0,side:THREE.DoubleSide});
-  const sameRun=(i,j)=> j>=0 && j<n && !(pts[Math.max(i,j)].travel) && !(pts[Math.max(i,j)].nd);
+  const sameRun=(i,j)=> j>=0 && j<n && !(pts[Math.max(i,j)].travel) && !(pts[Math.max(i,j)].nd) && !(pts[Math.max(i,j)].glide);
   for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*4*3), col=new Float32Array(cn*4*3); const idx=[]; const idxEnd=new Uint32Array(cn);
     for(let i=c0;i<c1;i++){ const p=pts[i]; const a=sameRun(i,i-1)?pts[i-1]:p, b=sameRun(i,i+1)?pts[i+1]:p; let tx=b.X-a.X, ty=b.Y-a.Y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl; const nx=-ty, ny=tx;
       const em=p.em==null?1:p.em; const w=P.lineW*p.m*Math.max(0.35,Math.sqrt(em||0.12)); const hw=w/2; const zt=p.Z, zb=p.Z-lh*(em<1?0.6:1); const li=i-c0;
       const v=[[p.X+nx*hw,p.Y+ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zb],[p.X+nx*hw,p.Y+ny*hw,zb]]; const cc=kc[p.kind]||kc.wall;
       for(let k=0;k<4;k++){ const o=(li*4+k)*3; pos[o]=v[k][0]; pos[o+1]=v[k][1]; pos[o+2]=v[k][2]; col[o]=cc.r; col[o+1]=cc.g; col[o+2]=cc.b; }
-      if(li>0 && !p.travel && !p.nd){ const A=(li-1)*4,B=li*4; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } } idxEnd[li]=idx.length; }
+      if(li>0 && !p.travel && !p.nd && !p.glide){ const A=(li-1)*4,B=li*4; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } } idxEnd[li]=idx.length; }
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.setIndex(new THREE.Uint16BufferAttribute(idx,1)); g.computeVertexNormals();
     const m=new THREE.Mesh(g,mat); m.userData={idxEnd,c0,total:idx.length}; m.frustumCulled=false; scene.add(m); meshes.push(m); }
   // travel lines (lift, move, lower)
-  const tv=[]; path.travIdx=[]; for(let i=1;i<n;i++){ const p=pts[i]; if(!p.travel) continue; const q=pts[i-1]; const hz=Math.max(q.Z,p.Z)+P.hop; tv.push(q.X,q.Y,q.Z, q.X,q.Y,hz, q.X,q.Y,hz, p.X,p.Y,hz, p.X,p.Y,hz, p.X,p.Y,p.Z); path.travIdx.push(i); }
-  if(tv.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tv),3)); travelLine=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:colorOf(css('--k-travel')),transparent:true,opacity:0.75})); travelLine.frustumCulled=false; travelLine.visible=$('showTravel').checked; scene.add(travelLine); }
+  const tv=[], tc=[]; path.travIdx=[]; path.travV=[]; const cT=colorOf(css('--k-travel')), cJ=colorOf(css('--k-join'));
+  for(let i=1;i<n;i++){ const p=pts[i]; const q=pts[i-1];
+    if(p.travel){ const hz=Math.max(q.Z,p.Z)+P.hop; tv.push(q.X,q.Y,q.Z, q.X,q.Y,hz, q.X,q.Y,hz, p.X,p.Y,hz, p.X,p.Y,hz, p.X,p.Y,p.Z); for(let k=0;k<6;k++) tc.push(cT.r,cT.g,cT.b); }
+    else if(p.glide){ const z=p.Z+0.15; tv.push(q.X,q.Y,z, p.X,p.Y,z); tc.push(cJ.r,cJ.g,cJ.b, cJ.r,cJ.g,cJ.b); }
+    else continue; path.travIdx.push(i); path.travV.push(tv.length/3); }
+  if(tv.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tv),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(tc),3)); travelLine=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.9})); travelLine.frustumCulled=false; travelLine.visible=$('showTravel').checked; scene.add(travelLine); }
   const ct=new Float64Array(n); for(let i=1;i<n;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); ct[i]=ct[i-1]+(b.travel?(s+2*P.hop)/P.travelF:s/b.f); } path.ct=ct;
   applyProgress(play.prog); }
 
@@ -575,12 +593,12 @@ const KN={wall:'壁の線',frame:'枠',join:'つなぎ',fill:'底面'};
 function applyProgress(prog){ if(!meshes.length||!path) return; play.prog=Math.min(1,Math.max(0,prog)); const pts=path.pts, n=pts.length;
   const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo;
   for(const m of meshes){ const c0=m.userData.c0, len=m.userData.idxEnd.length; let cnt; if(play.prog>=1 || i>=c0+len-1) cnt=m.userData.total; else if(i<c0) cnt=0; else cnt=m.userData.idxEnd[i-c0]; m.geometry.setDrawRange(0,cnt); }
-  if(travelLine){ let c=0; if(play.prog>=1) c=path.travIdx.length; else { let l=0,h=path.travIdx.length; while(l<h){ const md=(l+h)>>1; if(path.travIdx[md]<=i) l=md+1; else h=md; } c=l; } travelLine.geometry.setDrawRange(0,c*6); }
+  if(travelLine){ let c=0; if(play.prog>=1) c=path.travIdx.length; else { let l=0,h=path.travIdx.length; while(l<h){ const md=(l+h)>>1; if(path.travIdx[md]<=i) l=md+1; else h=md; } c=l; } travelLine.geometry.setDrawRange(0,c?path.travV[c-1]:0); }
   if(!nozzle){ nozzle=makeNozzle(); scene.add(nozzle); }
   const p=pts[i], q=pts[Math.min(n-1,i+1)]; const u=(q!==p && path.ct[i+1]>path.ct[i])? (T-path.ct[i])/(path.ct[i+1]-path.ct[i]) : 0;
   nozzle.position.set(p.X+(q.X-p.X)*u, p.Y+(q.Y-p.Y)*u, p.Z+(q.Z-p.Z)*u); nozzle.visible = play.prog<1 || play.on;
   if(!play.scrubbing) $('scrub').value=Math.round(play.prog*1000);
-  const nk=q.travel?'移動':(KN[q.kind]||''); $('playT').textContent = `${play.prog>=1 && !play.on ? '完了 ' : ''}${fmtTime(T)} · 層 ${p.layer+1}/${path.layers} · Z ${p.Z.toFixed(1)} · ${nk}`;
+  const nk=q.travel?'移動':q.glide?'つなぎ（押出なし）':(KN[q.kind]||''); $('playT').textContent = `${play.prog>=1 && !play.on ? '完了 ' : ''}${fmtTime(T)} · 層 ${p.layer+1}/${path.layers} · Z ${p.Z.toFixed(1)} · ${nk}`;
   render(); }
 function tick(ts){ if(!play.on) return; const dt=(ts-play.last)/1000; play.last=ts; const total=path.ct[path.ct.length-1]; let prog=play.prog + dt*(+$('playSpd').value)/total; if(prog>=1){ prog=1; stopPlay(); } applyProgress(prog); if(play.on) play.raf=requestAnimationFrame(tick); }
 function startPlay(){ if(!path) return; if(play.prog>=1) play.prog=0; play.on=true; play.last=performance.now(); $('btnPlay').textContent='❚❚ 停止'; play.raf=requestAnimationFrame(tick); }
@@ -594,7 +612,7 @@ $('showTravel').addEventListener('change',()=>{ if(travelLine){ travelLine.visib
 function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(Math.PI*(P.filD/2)**2)*P.eMul; const tf=Math.round(P.travelF*60); const f3=v=>v.toFixed(3); const X=v=>f3(v+P.bedX), Y=v=>f3(v+P.bedY);
   const out=[`; ClayLine Lab  ${new Date().toISOString().slice(0,16)}  source ${svgName}`,
     `; layer ${lh}mm  height ${P.height}mm  layers ${p.layers} (bottom ${p.nB})  lineW ${P.lineW}  speed ${P.baseF}/${P.vFirst}mm/s`,
-    `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
+    `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} glideRetract ${P.glideRet?'on':'off'} endOverlap ${P.endOv}% lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
     `; rotate ${P.rot}deg/layer mode ${P.rotMode} swing ${P.rotMax}deg target ${P.rotTarget}`,
     `; frame ${P.frameMode}${P.frameMode==='rect'?` ${P.frameW}x${P.frameD} r${P.frameR}`:P.frameMode==='circle'?` dia ${P.frameDia}`:''}`,
     `; svg units ${src.unitNote} scale ${P.scale}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
@@ -603,11 +621,13 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
   if(P.skirt){ const o=6, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
     out.push(';TYPE:SKIRT', `G1 F2400 Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F2400 Z${f3(lh)}`, `G1 F1800 E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
     for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
-  let lastF=-1,lastL=-1,lastK='';
+  let lastF=-1,lastL=-1,lastK='',gl=false;
   for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null;
+    if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F1800 E${f3(E)} ;unretract`); gl=false; lastF=-1; }
     if(r.layer!==lastL){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastL=r.layer; }
     if(r.travel){ out.push(`G1 F1800 E${f3(E-1)} ;retract`); out.push(`G1 F2400 Z${f3(Math.max(q?q.Z:0,r.Z)+P.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F2400 Z${f3(r.Z)}`); E+=P.prime; out.push(`G1 F1800 E${f3(E)} ;unretract${P.prime?' +prime':''}`); lastF=-1; lastK=''; continue; }
     if(r.nd){ out.push(`G1 F2400 X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)}`); lastF=2400; continue; }
+    if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F1800 E${f3(E-1)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
     const tk=r.kind==='join'?'JOIN':r.kind==='frame'?'FRAME':r.kind==='fill'?'FILL':'WALL'; if(tk!==lastK){ out.push(`;TYPE:${tk}`); lastK=tk; }
     const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
