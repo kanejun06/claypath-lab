@@ -549,7 +549,7 @@ function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispos
   $('legLo').textContent=byV?'遅い':'太い'; $('legHi').textContent=byV?'速い':'細い';
   const cs=colorOf(css('--clay-slow')), cf=colorOf(css('--clay-fast')), cb=colorOf(css('--clay-bad')); const tmp=new THREE.Color();
   const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0.0,side:THREE.DoubleSide});
-  for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*4*3), col=new Float32Array(cn*4*3); const idx=[]; const idxEnd=new Uint32Array(cn);
+  for(let k0=0;k0<n;k0+=CH){ const c0=k0>0?k0-1:0, c1=Math.min(n,k0+CH); const cn=c1-c0; /* each chunk repeats the last point of the one before, so the segment across the join is drawn */ const pos=new Float32Array(cn*4*3), col=new Float32Array(cn*4*3); const idx=[]; const idxEnd=new Uint32Array(cn);
     for(let i=c0;i<c1;i++){ const p=pts[i]; const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)]; let tx=b.X-a.X, ty=b.Y-a.Y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl; const nx=-ty, ny=tx;
       const w=P.lineW*p.m; const hw=w/2; const zt=p.Z, zb=p.Z-lh*(p.hh||1); const li=i-c0;
       const v=[[p.X+nx*hw,p.Y+ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zb],[p.X+nx*hw,p.Y+ny*hw,zb]];
