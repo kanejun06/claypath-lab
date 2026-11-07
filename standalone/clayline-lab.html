@@ -1,0 +1,849 @@
+<!-- built by tools/build-standalone.py from svg/index.html + shared/*.js — edit those, not this file -->
+<title>ClayLine Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#EDEFF2; --panel:#FFFFFF; --fg:#1B2027; --fg2:#5B6572; --line:#D3D8DF;
+  --accent:#2A4DA0; --accent2:#9DB3E6; --warn:#C8461F; --ok:#3B7F5C;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans JP','Hiragino Sans','Noto Sans JP',system-ui,sans-serif;
+  --k-wall:#2A4DA0; --k-frame:#5B6572; --k-join:#C98A1E; --k-fill:#8FA3C9; --k-travel:#D6402B; --view-bg:#E3E6EB; --view-grid:#C9CED6;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15181C; --panel:#1E2228; --fg:#E6E9EE; --fg2:#9AA4B1; --line:#30363E;
+  --accent:#8FAAF0; --accent2:#3C5390; --warn:#F07A50; --ok:#6CC79A;
+  --k-wall:#6B8BE0; --k-frame:#AEB6C2; --k-join:#EFB04A; --k-fill:#4A5F8F; --k-travel:#F0604A; --view-bg:#0F1114; --view-grid:#2A2F37; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#15181C; --panel:#1E2228; --fg:#E6E9EE; --fg2:#9AA4B1; --line:#30363E;
+  --accent:#8FAAF0; --accent2:#3C5390; --warn:#F07A50; --ok:#6CC79A;
+  --k-wall:#6B8BE0; --k-frame:#AEB6C2; --k-join:#EFB04A; --k-fill:#4A5F8F; --k-travel:#F0604A; --view-bg:#0F1114; --view-grid:#2A2F37; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:13px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.01em}
+.sub{color:var(--fg2);font-size:12px}
+header a.xlink{color:var(--accent);text-decoration:none;margin-left:auto}
+header a.xlink:hover{text-decoration:underline}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bottom:10px}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);gap:12px;height:calc(100% - 46px);min-height:560px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.side{overflow-y:auto;overflow-x:hidden;padding:10px 22px 10px 12px;scrollbar-gutter:stable;scrollbar-width:thin;display:flex;flex-direction:column;gap:14px}
+.side>section{min-width:0}
+.side::-webkit-scrollbar{width:8px}
+.side::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.view{min-height:420px;position:relative;background:var(--view-bg);overflow:hidden}
+.view canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;left:10px;top:10px;font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-variant-numeric:tabular-nums}
+.export{position:absolute;right:10px;bottom:10px;width:340px;max-height:calc(100% - 64px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:5px}
+.export .exphead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg2)}
+.export .msg:empty{display:none}
+.export details[open]{border-top:1px solid var(--line);padding-top:4px}
+.legend{position:absolute;left:10px;bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:11px;color:var(--fg2);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line);max-width:calc(100% - 370px)}
+.legend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.legend label{display:flex;align-items:center;gap:4px;cursor:pointer}
+.legend input{accent-color:var(--accent);margin:0}
+.info{position:absolute;right:10px;top:44px;width:290px;max-height:calc(100% - 44px - 96px);overflow-y:auto;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:10px}
+.info[hidden]{display:none}
+#btnInfo[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.viewbtns{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.playbar{position:absolute;left:10px;right:360px;bottom:44px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px}
+.playbar input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.playbar select{font:inherit;font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.playbar .t{flex:0 0 36ch;width:36ch;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+@media (max-width:900px){ .playbar{flex-wrap:wrap} .playbar input[type=range]{flex:1 1 60%} .playbar .t{flex:1 0 100%;width:auto;text-align:left} }
+section h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--fg2);margin:0 0 6px}
+.row{display:flex;align-items:center;gap:8px;margin:4px 0}
+.row label{flex:1;min-width:0}
+.row input[type=number]{width:70px;font-family:var(--mono);font-size:12px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.row select{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);max-width:170px}
+.row .unit{font-family:var(--mono);font-size:11px;color:var(--fg2);width:34px}
+.toggle{display:flex;align-items:center;gap:6px;font-weight:500}
+.toggle input{accent-color:var(--accent)}
+button{font:inherit;font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,canvas:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.sm{padding:3px 8px;font-size:11px}
+.file{display:flex;gap:6px;flex-wrap:wrap}
+.setbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.setbar .sp{flex:1}
+.setbar button[disabled]{opacity:.4;cursor:default}
+.setbar button.armed{border-color:var(--warn);color:var(--warn)}
+.setbar input{display:none}
+.file input{display:none}
+.stats{display:grid;grid-template-columns:1fr auto;gap:1px 8px;font-size:11.5px}
+.stats dt{color:var(--fg2)}
+.stats dd{margin:0;font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.big small{font-size:12px;color:var(--fg2);font-family:var(--sans)}
+.warns{display:flex;flex-direction:column;gap:3px}
+.warn{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;padding:4px 7px;line-height:1.4;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
+.warn::before{content:"";width:8px;height:8px;border-radius:50%;margin-top:4px;flex:none;background:var(--ok)}
+.warn.bad::before{background:var(--warn)}
+.warn.mid::before{background:var(--accent2)}
+textarea{width:100%;font-family:var(--mono);font-size:11px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:5px;resize:vertical}
+.note{font-size:11px;color:var(--fg2)}
+details summary{cursor:pointer;color:var(--fg2);font-size:12px}
+.exp{display:flex;gap:6px;flex-wrap:wrap}
+.exp input[type=text]{flex:1;min-width:0;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.msg{font-size:11px;min-height:16px}
+.msg.err{color:var(--warn)}
+.msg.ok{color:var(--ok)}
+.drop{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:15px;color:var(--accent);background:color-mix(in srgb,var(--view-bg) 80%,transparent);border:2px dashed var(--accent);border-radius:6px;pointer-events:none}
+.view.dragging .drop{display:flex}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto;height:auto}
+  .view{height:min(75vh,600px)}
+  .viewbtns{top:44px;left:10px;right:auto}
+  .info{left:10px;right:10px;top:78px;width:auto;max-height:calc(100% - 78px - 200px)}
+  .export{left:10px;right:10px;width:auto}
+  .legend{bottom:96px;max-width:none;right:10px}
+  .playbar{right:10px;bottom:150px;flex-wrap:nowrap}
+  .playbar .t{display:none}
+}
+</style>
+
+<header>
+  <h1>ClayLine Lab</h1>
+  <span class="sub">SVGの線を層ごとに積み、つなぎを工夫して一筆で描く。磁器土／SYNO-SOURCE-3040向け</span>
+  <a class="sub xlink" href="../">STLから回転体を描く → ClayPath Lab</a>
+  <a class="sub xlink" style="margin-left:0" href="../morph/">断面を変えていく → ClayMorph Lab</a>
+</header>
+
+<div class="app">
+  <div class="panel side" id="left">
+    <div class="setbar">
+      <button class="sm" id="btnUndo" type="button" title="元に戻す（⌘Z / Ctrl+Z）" aria-label="元に戻す" disabled>↶</button>
+      <button class="sm" id="btnRedo" type="button" title="やり直す（⇧⌘Z / Ctrl+Y）" aria-label="やり直す" disabled>↷</button>
+      <span class="sp"></span>
+      <button class="sm" id="btnSetSave" type="button" title="設定とSVGをファイルに保存（⌘S / Ctrl+S）">設定を保存</button>
+      <button class="sm" id="btnSetLoad" type="button" title="保存した設定ファイルを開く">読み込み</button>
+      <input id="setIn" type="file" accept=".json,application/json,.txt">
+      <button class="sm" id="btnSetReset" type="button" title="設定を最初の値に戻す（SVGはそのまま）">リセット</button>
+    </div>
+    <div class="msg" id="setMsg" style="margin-top:-8px"></div>
+    <section>
+      <h2>SVG</h2>
+      <div class="file">
+        <button id="btnLoad" type="button">SVGを読み込む</button>
+        <input id="fileIn" type="file" accept=".svg,image/svg+xml">
+        <button id="btnSample" type="button" class="sm">サンプル（波線・枠90×60）</button>
+        <button id="btnSampleSave" type="button" class="sm">サンプルSVGを保存</button>
+      </div>
+      <div class="note" id="srcInfo">—</div>
+      <div class="row"><label for="pxUnit">px・単位なしの扱い</label><select id="pxUnit"><option value="72">1px＝1pt（Illustrator）</option><option value="96">96dpi（Figma・ブラウザ）</option><option value="mm">1px＝1mm</option></select></div>
+      <div class="row"><label for="scale">拡大率（全体）</label><input id="scale" type="number" step="1" min="5" max="1000" value="100"><span class="unit">%</span></div>
+      <div class="row"><label for="sx">横 × 縦の倍率</label><input id="sx" type="number" step="1" min="5" max="1000" value="100"><span class="unit">×</span><input id="sy" type="number" step="1" min="5" max="1000" value="100"><span class="unit">%</span></div>
+      <div class="row"><label for="step">曲線の細かさ</label><input id="step" type="number" step="0.1" min="0.2" max="3" value="0.5"><span class="unit">mm</span></div>
+      <div class="note">線（パス・直線・折れ線）は「壁の線」、閉じた形（四角・円・閉じたパス）は「枠」として扱う。塗りは使わない。width属性がmmならそのまま、pxか単位なしなら上の設定で換算する。</div>
+    </section>
+
+    <section>
+      <h2>枠</h2>
+      <div class="row"><label for="frameMode">枠の形</label><select id="frameMode"><option value="svg">SVGの閉じた形を使う</option><option value="rect">角（四角）</option><option value="circle">丸</option><option value="none">なし</option></select></div>
+      <div class="row frameRect"><label for="frameW">幅 × 奥行</label><input id="frameW" type="number" step="1" min="10" max="280" value="90"><span class="unit">×</span><input id="frameD" type="number" step="1" min="10" max="280" value="60"><span class="unit">mm</span></div>
+      <div class="row frameRect"><label for="frameR">角の丸み</label><input id="frameR" type="number" step="1" min="0" max="140" value="0"><span class="unit">mm</span></div>
+      <div class="row frameCirc"><label for="frameDia">直径</label><input id="frameDia" type="number" step="1" min="10" max="280" value="80"><span class="unit">mm</span></div>
+      <div class="note">角・丸を選ぶと、アプリが絵の中心に枠をつくり、枠の外の線を切る。SVG には模様だけを枠より大きめに描けばよい（回すなら、枠の一番遠い所まで届く円を覆う大きさ）。SVG の閉じた形はこのとき模様の一部として扱う。</div>
+    </section>
+
+    <section>
+      <h2>層</h2>
+      <div class="row"><label for="layerH">層高</label><input id="layerH" type="number" step="0.05" min="0.3" max="3" value="0.9"><span class="unit">mm</span></div>
+      <div class="row"><label for="height">全体の高さ</label><input id="height" type="number" step="1" min="1" max="300" value="18"><span class="unit">mm</span></div>
+      <div class="row"><label for="bottomN">底面の層数</label><input id="bottomN" type="number" step="1" min="0" max="12" value="3"><span class="unit">層</span></div>
+      <div class="row"><label for="fillPitch">底面の線間隔（線幅比）</label><input id="fillPitch" type="number" step="0.05" min="0.5" max="2" value="1.0"></div>
+      <div class="note">底面は枠（角・丸、または SVG の最も大きい閉じた形）の内側を平行線で埋め、層ごとに向きを90°変える。枠がなければ全体を囲む四角を使う。</div>
+    </section>
+
+    <section>
+      <h2>経路</h2>
+      <div class="row"><label for="order">描く順序</label><select id="order"><option value="near">近い順（自動）</option><option value="svg">SVGに書いた順</option></select></div>
+      <div class="row"><label for="loops">枠を描くタイミング</label><select id="loops"><option value="first">先に（線の受け）</option><option value="last">後に</option><option value="off">描かない</option></select></div>
+      <div class="row"><label for="join">線と線のつなぎ</label><select id="join"><option value="frame">枠に沿って押出</option><option value="line">直線で押出</option><option value="hop">移動（持ち上げる）</option></select></div>
+      <div class="row"><label for="joinMax">枠に沿うつなぎの最大長</label><input id="joinMax" type="number" step="1" min="0" max="200" value="30"><span class="unit">mm</span></div>
+      <div class="row"><label for="lineMax">直線つなぎの最大長</label><input id="lineMax" type="number" step="0.5" min="0" max="100" value="5"><span class="unit">mm</span></div>
+      <div class="row"><label for="snap">枠に乗るとみなす距離</label><input id="snap" type="number" step="0.1" min="0" max="10" value="2"><span class="unit">mm</span></div>
+      <div class="row"><label for="frameE">枠の上のつなぎの押出</label><input id="frameE" type="number" step="0.05" min="0" max="1.5" value="0"><span class="unit">倍</span></div>
+      <div class="row"><label class="toggle"><input id="glideRet" type="checkbox" checked>押出なしで滑らせる間はリトラクト</label></div>
+      <div class="row"><label for="endOv">線の端と枠の重なり</label><input id="endOv" type="number" step="5" min="0" max="100" value="50"><span class="unit">%</span></div>
+      <div class="row"><label for="lineE">直線つなぎの押出</label><input id="lineE" type="number" step="0.05" min="0" max="1.5" value="1.0"><span class="unit">倍</span></div>
+      <div class="note">線の端と枠の重なりは、線の端の粘土が枠の粘土にかぶる幅（線幅比）。100%で線の端が枠の中心線まで行き（重なりすぎてはみ出しやすい）、0%で枠の内側の縁で止まる。</div>
+      <div class="note">「枠に沿って押出」は、線の端と次の線の端が両方とも枠の近くにあるとき、枠の上をなぞって次の線へ行く（既定は押出0：ノズルを下げたまま枠の上を滑らせるだけで、粘土を足さない）。条件に合わなければ直線（中に新しい壁ができるので短いときだけ）、それも長すぎれば持ち上げて移動する。「近い順」は前の層の終点から始めるので、層ごとに向きが自然に入れ替わる。</div>
+    </section>
+
+    <section>
+      <h2>層ごとの回転</h2>
+      <div class="row"><label for="rot">1層あたりの回転</label><input id="rot" type="number" step="0.5" min="-90" max="90" value="0"><span class="unit">°</span></div>
+      <div class="row"><label for="rotMode">回り方</label><select id="rotMode"><option value="cont">一方向に回し続ける</option><option value="swing">往復する</option><option value="alt">交互（0°と回転角）</option></select></div>
+      <div class="row"><label for="rotMax">往復の振れ幅</label><input id="rotMax" type="number" step="1" min="0" max="180" value="30"><span class="unit">°</span></div>
+      <div class="row"><label for="rotTarget">回すもの</label><select id="rotTarget"><option value="lines">線だけ（枠は固定、はみ出しは枠で切る）</option><option value="all">枠も一緒に</option></select></div>
+      <div class="note">回転の中心は絵の中心。底面は回さない。「往復」は0°から振れ幅まで1層ずつ回して戻る。「交互」は層ごとに0°と回転角を入れ替える（2枚の絵を交互に積むのと同じで、上の層の線は交点だけで支えられる）。線だけ回すと、枠からはみ出た所は枠で切るので、線の端はいつも枠の上に来る。</div>
+    </section>
+
+    <section>
+      <h2>太さ・速度</h2>
+      <div class="row"><label for="wallW">壁の線の太さ</label><input id="wallW" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
+      <div class="row"><label for="frameWm">枠の太さ</label><input id="frameWm" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
+      <div class="note" id="wNote">—</div>
+      <div class="row"><label class="toggle"><input id="useSW" type="checkbox">SVGの線の太さを押出に反映</label></div>
+      <div class="row"><label for="wMin">太さ倍率の範囲</label><input id="wMin" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">〜</span><input id="wMax" type="number" step="0.05" min="1" max="3" value="1.6"></div>
+      <div class="row"><label for="baseF">速度</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
+      <div class="row"><label for="vFirst">初層速度</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
+      <div class="row"><label for="prime">移動後の先押し</label><input id="prime" type="number" step="0.1" min="0" max="5" value="0"><span class="unit">mm</span></div>
+      <div class="note">太さは押出量（E）で変える（速度は同じ）。線の太さを反映すると、stroke-width÷線幅（設定値）を線ごとの倍率にして、上の倍率に掛ける（範囲で切り詰め）。先押しは持ち上げ移動の後、書き始める前に足すE（フィラメント長）。</div>
+    </section>
+  </div>
+
+  <div class="panel view" id="view">
+    <canvas id="gl"></canvas>
+    <div class="drop">SVGをここにドロップ</div>
+    <div class="hud" id="hud">—</div>
+    <div class="viewbtns">
+      <button class="sm" id="btnFit" type="button">全体</button>
+      <button class="sm" id="btnTop" type="button">真上</button>
+      <button class="sm" id="btnSide" type="button">真横</button>
+      <button class="sm" id="btnProj" type="button" aria-pressed="false" title="平行投影では、どの壁も実際の太さで見える">遠近投影</button>
+      <button class="sm" id="btnInfo" type="button" aria-expanded="true" aria-controls="info">推定・判定</button>
+    </div>
+    <div class="info" id="info">
+      <section>
+        <div class="big" id="timeBig">—</div>
+        <dl class="stats">
+          <dt>大きさ</dt><dd id="sSize">—</dd>
+          <dt>層数（底面＋壁）</dt><dd id="sLayers">—</dd>
+          <dt>1層の線・枠</dt><dd id="sItems">—</dd>
+          <dt>回転</dt><dd id="sRot">—</dd>
+          <dt>1層のつなぎ／持ち上げ（最大）</dt><dd id="sJoin">—</dd>
+          <dt>押出の経路長</dt><dd id="sLen">—</dd>
+          <dt>移動の経路長</dt><dd id="sTrav">—</dd>
+        </dl>
+      </section>
+      <section>
+        <h2>判定</h2>
+        <div class="warns" id="warns"></div>
+      </section>
+    </div>
+    <div class="playbar">
+      <button class="sm" id="btnPlay" type="button" aria-label="再生">▶ 再生</button>
+      <select id="playSpd" aria-label="再生速度"><option value="1">1×</option><option value="5" selected>5×</option><option value="20">20×</option><option value="60">60×</option><option value="200">200×</option></select>
+      <input type="range" id="scrub" min="0" max="1000" value="1000" aria-label="進行位置">
+      <span class="t" id="playT">—</span>
+    </div>
+    <div class="export">
+      <div class="exphead">G-code</div>
+      <div class="exp">
+        <input type="text" id="fname" value="clayline" aria-label="ファイル名">
+        <button class="primary" id="btnSave" type="button">保存</button>
+        <button id="btnCopy" type="button">コピー</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <details>
+        <summary>押出・開始/終了コードの設定</summary>
+        <div class="note" style="margin:4px 0 6px">Eは「線幅×層高×倍率÷フィラメント断面」で書き出す（スクリュー押出前提）。XYは「ベッド中心」を足す。値は ClayPath Lab と同じ。</div>
+        <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
+        <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
+        <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
+        <div class="row"><label for="hop">持ち上げ高さ</label><input id="hop" type="number" step="0.5" min="0" max="10" value="1"><span class="unit">mm</span></div>
+        <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
+        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（外側6mm）</label></div>
+        <div class="note" style="margin-top:6px">開始コード（Cura「3040_case1」から転記）</div>
+        <textarea id="gStart" rows="8">G90 ;absolute positioning
+G92 Z0 ;current needle height is Z zero
+G21 ;metric values
+M82 ;absolute extrusion
+M107 ;fan off
+G28 X0 Y0 ;home X and Y only. never home Z
+G92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print
+G1 Z15.0 F2400 ;lower the platform
+G92 E0 ;reset extruder
+G1 F200 E3 ;prime 3mm
+M117 Printing...
+M106 S255 ;fan full
+G92 E0
+G1 F1800 E-1 ;retract</textarea>
+        <div class="note" style="margin-top:6px">終了コード</div>
+        <textarea id="gEnd" rows="6">M107
+G91 ;relative
+G1 E-1 F300
+G1 Z+20
+G90 ;back to absolute
+G28 X0 Y0
+M106 S0 ;fan off
+M84 ;disable motors
+M82 ;absolute extrusion mode</textarea>
+      </details>
+    </div>
+    <div class="legend" id="legend">
+      <span><i style="background:var(--k-wall)"></i>壁の線</span>
+      <span><i style="background:var(--k-frame)"></i>枠</span>
+      <span><i style="background:var(--k-join);height:2px"></i>つなぎ（押出なし）</span>
+      <span><i style="background:var(--k-fill)"></i>底面</span>
+      <label><input type="checkbox" id="showTravel" checked><i style="background:var(--k-travel);height:2px"></i>移動</label>
+    </div>
+  </div>
+</div>
+
+<script>window.ClayNavFiles=['claypath-lab.html','clayline-lab.html','claymorph-lab.html'];</script>
+<script>/* ---- inlined from shared/nav.js ---- */
+/* ClayPath Lab / ClayLine Lab / ClayMorph Lab — tabs to move between the three tools
+ * Replaces the header links with one tab bar (the current tool highlighted). Query and hash (e.g. ?teacher) carry over.
+ * Moving to another tab loads that page: the tool you leave keeps nothing, so save G-code / settings first.
+ */
+(function(){
+"use strict";
+const TOOLS=[
+  {name:'ClayPath Lab', sub:'STLから', dir:''},
+  {name:'ClayLine Lab', sub:'SVGの線から', dir:'svg/'},
+  {name:'ClayMorph Lab', sub:'断面の変化から', dir:'morph/'},
+];
+const me=document.currentScript; const root=(me&&me.src||'').replace(/shared\/nav\.js(\?.*)?$/,'');
+function build(){ const hd=document.querySelector('header'); if(!hd) return;
+  hd.querySelectorAll('a.xlink').forEach(a=>a.remove());
+  const here=location.href.split(/[?#]/)[0].replace(/index\.html$/,'');
+  const st=document.createElement('style'); st.textContent=`
+.tooltabs{display:flex;gap:2px;margin-left:auto;align-self:center;background:var(--line);padding:2px;border-radius:7px}
+.tooltabs a{display:flex;flex-direction:column;align-items:center;padding:3px 12px;border-radius:5px;color:var(--fg2);text-decoration:none;font-size:12px;line-height:1.25;white-space:nowrap}
+.tooltabs a small{font-size:10px}
+.tooltabs a:hover{color:var(--fg);background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.tooltabs a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+@media (max-width:760px){ .tooltabs{margin-left:0;width:100%} .tooltabs a{flex:1;padding:3px 4px} }`; document.head.appendChild(st);
+  const nav=document.createElement('nav'); nav.className='tooltabs'; nav.setAttribute('aria-label','ツールの切り替え');
+  // single-file builds (standalone/) set window.ClayNavFiles to their sibling file names
+  const files=window.ClayNavFiles; const page=location.pathname.split('/').pop();
+  TOOLS.forEach((t,i)=>{ const a=document.createElement('a');
+    if(files){ a.href=files[i]+location.search+location.hash; if(page===files[i]) a.setAttribute('aria-current','page'); }
+    else { const url=root+t.dir; a.href=url+(location.protocol==='file:'?'index.html':'')+location.search+location.hash; if(here===url) a.setAttribute('aria-current','page'); } // file:// does not serve a folder's index.html
+    a.innerHTML=`${t.name}<small>${t.sub}</small>`; nav.appendChild(a); });
+  // header: title and description first, tabs to the right
+  const h1=hd.querySelector('h1'), sub=hd.querySelector('.sub'); (sub||h1).after(nav); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
+})();
+</script>
+<script>/* ---- inlined from shared/printer.js ---- */
+/* ClayPath Lab / ClayLine Lab / ClayMorph Lab — shared machine profile
+ *
+ * The values every tool uses for the printer live here, in one place. Each page loads this file before its own script
+ * and calls ClayPrinter.apply(): the machine inputs get these values and are locked for students. Opening a page with
+ * ?teacher (e.g. .../morph/?teacher) unlocks them for that tab only, for test prints; reloading brings these values back.
+ * To change what students print with, edit this file and push.
+ *
+ * Machine: SYNO-SOURCE-3040 (air tank + screw extruder), Kobe Design University. Values confirmed on the machine.
+ */
+(function(){
+"use strict";
+const PROFILE={
+  name:'SYNO-SOURCE-3040・ノズル1.5mm・標準',
+  short:'3040・1.5mm',   // shown in the header chip
+  nozzle:1.5,        // mm. 2.0 mm also exists but uses much more clay; the course uses 1.5 only
+  lineW:1.5,         // mm, line width used for the E calculation
+  layerH:0.9,        // mm
+  filD:2.2,          // mm, "filament" diameter used to convert volume to E (screw extruder)
+  eMul:0.85,         // extrusion multiplier (Cura flow)
+  baseF:18,          // mm/s, base wall speed (try up to ~30 later)
+  vFirst:18,         // mm/s, first layer and skirt
+  travelF:60,        // mm/s, travel moves
+  zF:40,             // mm/s, Z moves (F2400)
+  retract:1,         // mm of E pulled back before a travel
+  retractF:30,       // mm/s for retract / unretract (F1800)
+  hop:1,             // mm, Z lift for travel moves
+  skirt:true,        // one skirt loop
+  skirtOff:6,        // mm, skirt offset from the part
+  bedX:150, bedY:150,// mm, added to every XY (same frame as the Cura output); the start code's G92 X-15 Y-30 also applies
+  build:{x:300,y:300,z:400}, // mm
+  gStart:"G90 ;absolute positioning\nG92 Z0 ;current needle height is Z zero\nG21 ;metric values\nM82 ;absolute extrusion\nM107 ;fan off\nG28 X0 Y0 ;home X and Y only. never home Z\nG92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print\nG1 Z15.0 F2400 ;lower the platform\nG92 E0 ;reset extruder\nG1 F200 E3 ;prime 3mm\nM117 Printing...\nM106 S255 ;fan full\nG92 E0\nG1 F1800 E-1 ;retract",
+  gEnd:"M107\nG91 ;relative\nG1 E-1 F300\nG1 Z+20\nG90 ;back to absolute\nG28 X0 Y0\nM106 S0 ;fan off\nM84 ;disable motors\nM82 ;absolute extrusion mode",
+  notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、アクリル＋マスキングテープ／9mm MDF）'
+};
+// inputs that belong to the machine (only those a page has are touched)
+const LOCK=['lineW','layerH','filD','eMul','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
+const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
+function setValues(){ const $=id=>document.getElementById(id);
+  for(const id of LOCK){ const el=$(id); if(!el||!(id in PROFILE)) continue;
+    if(el.type==='checkbox') el.checked=!!PROFILE[id]; else el.value=PROFILE[id];
+    if(!teacher){ el.disabled=true; el.title='機械の設定（変更は教員のみ）'; el.classList.add('locked'); } } }
+let applied=false;
+function apply(){ setValues(); if(applied) return; applied=true;
+  const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}'; document.head.appendChild(st);
+  const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
+    b.textContent= teacher? `教員モード：機械の設定を変更できます（このタブだけ。再読み込みで ${PROFILE.name} に戻る）` : `🔒 ${PROFILE.short}`; b.title= teacher? '' : '機械の設定は教員だけが変更できます'; if(teacher) hd.appendChild(b); else { const sub=hd.querySelector('.sub'); (sub||hd.lastChild).after(b); } } }
+// after loading a settings file: put the machine values back unless a teacher is testing
+function reapply(){ if(!teacher) setValues(); }
+window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+// machine profile (shared/printer.js): fills and locks the machine inputs; falls back to the page's own values if the file is missing
+const MP=Object.assign({zF:40,retract:1,retractF:30,hop:1,skirtOff:6},(window.ClayPrinter&&ClayPrinter.PROFILE)||{}); if(window.ClayPrinter) ClayPrinter.apply();
+const $=id=>document.getElementById(id);
+const ids=['pxUnit','scale','sx','sy','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','wallW','frameWm','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const P={};
+function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
+const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+
+/* ================= SVG ================= */
+let svgText=null, svgName='', src=null, path=null, bb=null, checks=null;
+const UNIT={mm:1,cm:10,in:25.4,pt:25.4/72,pc:25.4/6,q:0.25};
+function lenMm(str,pxmm){ const m=/^\s*([-+]?[\d.]+(?:e[-+]?\d+)?)\s*([a-z%]*)\s*$/i.exec(str||''); if(!m) return null; const v=+m[1], u=m[2].toLowerCase(); if(u===''||u==='px') return v*pxmm; if(u==='%') return null; return UNIT[u]? v*UNIT[u] : null; }
+
+// path "d" -> absolute subpaths [{d, closed, polyOnly}]
+function splitPath(d){
+  const tk=d.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g)||[]; let i=0, cmd='', cx=0,cy=0,sx=0,sy=0; const subs=[]; let cur=null;
+  const isC=t=>/^[a-zA-Z]$/.test(t); const num=()=>+tk[i++];
+  const start=(x,y)=>{ cur={d:[`M${x} ${y}`],closed:false,poly:true}; subs.push(cur); };
+  while(i<tk.length){
+    if(isC(tk[i])) cmd=tk[i++]; else if(!cmd){ i++; continue; }
+    const rel=cmd!==cmd.toUpperCase(), C=cmd.toUpperCase(); const ox=rel?cx:0, oy=rel?cy:0;
+    if(C==='Z'){ if(cur){ cur.d.push('Z'); cur.closed=true; } cx=sx; cy=sy; cmd=''; if(i<tk.length && !/^[mM]$/.test(tk[i])) start(sx,sy); continue; }
+    if(i>=tk.length || isC(tk[i])) { continue; }
+    if(C==='M'){ const x=num()+ox,y=num()+oy; cx=sx=x; cy=sy=y; start(x,y); cmd=rel?'l':'L'; continue; }
+    if(!cur) start(cx,cy);
+    if(C==='L'){ const x=num()+ox,y=num()+oy; cur.d.push(`L${x} ${y}`); cx=x;cy=y; }
+    else if(C==='H'){ const x=num()+ox; cur.d.push(`L${x} ${cy}`); cx=x; }
+    else if(C==='V'){ const y=num()+oy; cur.d.push(`L${cx} ${y}`); cy=y; }
+    else if(C==='C'){ const a=[num()+ox,num()+oy,num()+ox,num()+oy,num()+ox,num()+oy]; cur.d.push('C'+a.join(' ')); cur.poly=false; cx=a[4];cy=a[5]; }
+    else if(C==='S'||C==='Q'){ const a=[num()+ox,num()+oy,num()+ox,num()+oy]; cur.d.push(C+a.join(' ')); cur.poly=false; cx=a[2];cy=a[3]; }
+    else if(C==='T'){ const a=[num()+ox,num()+oy]; cur.d.push('T'+a.join(' ')); cur.poly=false; cx=a[0];cy=a[1]; }
+    else if(C==='A'){ const rx=num(),ry=num(),rot=num(),la=num(),sw=num(),x=num()+ox,y=num()+oy; cur.d.push(`A${rx} ${ry} ${rot} ${la?1:0} ${sw?1:0} ${x} ${y}`); cur.poly=false; cx=x;cy=y; }
+    else { i++; }
+  }
+  for(const s of subs) s.d=s.d.join(' ');
+  return subs.filter(s=>s.d.length>0);
+}
+function polyFromD(d){ const out=[]; const re=/[ML]([-+\d.eE]+) ([-+\d.eE]+)/g; let m; while((m=re.exec(d))) out.push([+m[1],+m[2]]); return out; }
+function rdp(pts,eps){ if(pts.length<3) return pts; const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1; const st=[[0,pts.length-1]];
+  while(st.length){ const [a,b]=st.pop(); let md=0,mi=-1; const A=pts[a],B=pts[b]; const dx=B[0]-A[0],dy=B[1]-A[1]; const L=Math.hypot(dx,dy)||1e-9;
+    for(let k=a+1;k<b;k++){ const d=Math.abs((pts[k][0]-A[0])*dy-(pts[k][1]-A[1])*dx)/L; if(d>md){md=d;mi=k;} } if(md>eps){ keep[mi]=1; st.push([a,mi],[mi,b]); } }
+  return pts.filter((_,k)=>keep[k]); }
+
+function parseSVG(text){ readP();
+  const doc=new DOMParser().parseFromString(text,'image/svg+xml'); const root=doc.documentElement; if(!root||root.nodeName.toLowerCase()!=='svg') throw new Error('SVGとして読めませんでした');
+  const host=document.createElement('div'); host.style.cssText='position:absolute;left:-10000px;top:0;width:10px;height:10px;overflow:hidden;visibility:hidden';
+  const svg=document.importNode(root,true); host.appendChild(svg); document.body.appendChild(host);
+  try{
+    const pxmm = P.pxUnit==='72'?25.4/72 : P.pxUnit==='96'?25.4/96 : 1;
+    const vb=svg.viewBox&&svg.viewBox.baseVal; const hasVB = vb && vb.width>0;
+    const wmm=lenMm(svg.getAttribute('width'),pxmm);
+    let mmu = (hasVB && wmm)? wmm/vb.width : pxmm; const unitNote = (hasVB&&wmm)? `width ${svg.getAttribute('width')}` : `${P.pxUnit==='mm'?'1単位＝1mm':P.pxUnit==='72'?'1単位＝1pt':'96dpi'}`;
+    mmu*=P.scale/100;
+    const skip=new Set(['defs','clippath','mask','symbol','marker','pattern','lineargradient','radialgradient','text','style','metadata','title','desc']);
+    const items=[]; let nUse=0,nText=0,nImg=0; const stepU=P.step/mmu;
+    const walk=(el)=>{ for(const c of el.children){ const t=c.nodeName.toLowerCase(); if(t==='use'){nUse++;continue;} if(t==='text'){nText++;continue;} if(t==='image'){nImg++;continue;} if(skip.has(t)) continue;
+        const cs=getComputedStyle(c); if(cs.display==='none'||c.getAttribute('display')==='none') continue;
+        if(t==='g'||t==='a'||t==='svg'&&c!==svg){ walk(c); continue; } shape(c,t,cs); } };
+    const matOf=(el)=>{ let m=new DOMMatrix(); let n=el; while(n&&n!==svg){ const tl=n.transform&&n.transform.baseVal; if(tl&&tl.numberOfItems){ const c=tl.consolidate(); if(c){ const q=c.matrix; m=new DOMMatrix([q.a,q.b,q.c,q.d,q.e,q.f]).multiply(m); } } n=n.parentNode; } return m; };
+    const add=(el,cs,pts,closed)=>{ const m=matOf(el); const det=Math.sqrt(Math.abs(m.a*m.d-m.b*m.c));
+      let out=pts.map(p=>{ const x=m.a*p[0]+m.c*p[1]+m.e, y=m.b*p[0]+m.d*p[1]+m.f; return [x*mmu*P.sx/100,-y*mmu*P.sy/100]; });
+      if(closed && out.length>2 && D(out[0],out[out.length-1])<1e-3) out.pop();
+      if(!closed && out.length>2 && D(out[0],out[out.length-1])<0.05){ out.pop(); closed=true; }
+      const clean=[out[0]]; for(const p of out.slice(1)) if(D(p,clean[clean.length-1])>1e-4) clean.push(p);
+      let len=0; for(let k=1;k<clean.length;k++) len+=D(clean[k],clean[k-1]); if(closed) len+=D(clean[0],clean[clean.length-1]);
+      if(clean.length<2||len<0.5) return;
+      const sw=(parseFloat(cs.strokeWidth)||0)*det*mmu*Math.sqrt(P.sx*P.sy)/100; const hasStroke=cs.stroke&&cs.stroke!=='none';
+      items.push({pts:clean,closed,sw:hasStroke?sw:0,len,id:items.length}); };
+    const sampleEl=(el,cs,d,closed)=>{ const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',d); el.parentNode.insertBefore(p,el); let L=0; try{ L=p.getTotalLength(); }catch(e){}
+      const n=Math.max(2,Math.ceil(L/stepU)); const pts=[]; for(let k=0;k<=n;k++){ const q=p.getPointAtLength(L*k/n); pts.push([q.x,q.y]); } p.remove();
+      const simp=rdp(pts,0.02/mmu); add(el,cs,simp,closed); };
+    const num=(el,a)=>parseFloat(el.getAttribute(a))||0;
+    function shape(el,t,cs){
+      if(t==='path'){ for(const s of splitPath(el.getAttribute('d')||'')){ if(s.poly) add(el,cs,polyFromD(s.d),s.closed); else sampleEl(el,cs,s.d,s.closed); } }
+      else if(t==='line') add(el,cs,[[num(el,'x1'),num(el,'y1')],[num(el,'x2'),num(el,'y2')]],false);
+      else if(t==='polyline'||t==='polygon'){ const v=(el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number); const pts=[]; for(let k=0;k+1<v.length;k+=2) pts.push([v[k],v[k+1]]); add(el,cs,pts,t==='polygon'); }
+      else if(t==='rect'){ const x=num(el,'x'),y=num(el,'y'),w=num(el,'width'),h=num(el,'height'); add(el,cs,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],true); }
+      else if(t==='circle'||t==='ellipse'){ const cx=num(el,'cx'),cy=num(el,'cy'); const rx=t==='circle'?num(el,'r'):num(el,'rx'), ry=t==='circle'?rx:num(el,'ry'); const n=Math.max(24,Math.ceil(2*Math.PI*Math.max(rx,ry)/stepU)); const pts=[]; for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; pts.push([cx+rx*Math.cos(a),cy+ry*Math.sin(a)]); } add(el,cs,pts,true); }
+    }
+    walk(svg);
+    if(!items.length) throw new Error('線が見つかりませんでした（文字や画像、use は読みません）');
+    // centre on origin
+    let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const it of items) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); }
+    const ccx=(mnx+mxx)/2, ccy=(mny+mxy)/2; for(const it of items) for(const p of it.pts){ p[0]-=ccx; p[1]-=ccy; }
+    for(const it of items) if(it.closed) prepLoop(it);
+    return {items, w:mxx-mnx, h:mxy-mny, nUse, nText, nImg, unitNote};
+  } finally { host.remove(); }
+}
+function prepLoop(L){ const n=L.pts.length; L.s=new Float64Array(n+1); for(let k=0;k<n;k++) L.s[k+1]=L.s[k]+D(L.pts[k],L.pts[(k+1)%n]); L.T=L.s[n];
+  let a=0; for(let k=0;k<n;k++){ const p=L.pts[k],q=L.pts[(k+1)%n]; a+=p[0]*q[1]-q[0]*p[1]; } L.area=Math.abs(a/2); }
+function proj(L,p){ const n=L.pts.length; let best={d:1e18}; for(let k=0;k<n;k++){ const a=L.pts[k], b=L.pts[(k+1)%n]; const dx=b[0]-a[0],dy=b[1]-a[1]; const l2=dx*dx+dy*dy||1e-12; let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2; t=Math.max(0,Math.min(1,t)); const q=[a[0]+dx*t,a[1]+dy*t]; const d=D(p,q); if(d<best.d) best={d,pt:q,seg:k,s:L.s[k]+t*Math.sqrt(l2)}; } return best; }
+function arcPts(L,pa,pb){ const n=L.pts.length, T=L.T; let f=pb.s-pa.s; if(f<0) f+=T; const out=[];
+  if(f<=T-f){ if(!(pa.seg===pb.seg && pb.s>=pa.s)){ let k=(pa.seg+1)%n; for(let g=0;g<=n;g++){ out.push(L.pts[k]); if(k===pb.seg) break; k=(k+1)%n; } } return {pts:out,len:f}; }
+  if(!(pa.seg===pb.seg && pb.s<=pa.s)){ let k=pa.seg; for(let g=0;g<=n;g++){ out.push(L.pts[k]); if(k===(pb.seg+1)%n) break; k=(k-1+n)%n; } } return {pts:out,len:T-f}; }
+function loopFrom(L,p){ const pa=proj(L,p); const n=L.pts.length; const out=[pa.pt]; for(let g=1;g<=n;g++) out.push(L.pts[(pa.seg+g)%n]); out.push(pa.pt); return out.filter((q,i,a)=>i===0||D(q,a[i-1])>1e-4); }
+
+/* ================= sample ================= */
+// sample: a wave field larger than the frame (frame is made in the app: 角 90x60), so it can be rotated without empty corners
+function sampleSVGText(){ const W=120, H=132, cx=60, cy=66, d=12, A=5.6, lam=15; const lines=[];
+  for(let i=-5;i<=5;i++){ const sg=Math.abs(i)%2?-1:1; const pts=[]; for(let x=0;x<=W+1e-9;x+=0.5){ pts.push(`${x.toFixed(2)},${(cy+d*i+sg*A*Math.sin(2*Math.PI*(x-cx)/lam)).toFixed(3)}`); } lines.push(`  <polyline points="${pts.join(' ')}"/>`); }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">\n<!-- ClayLine Lab sample: wave field only. Use frame 角 90 x 60 mm in the app. -->\n<g fill="none" stroke="#000" stroke-width="1.5">\n${lines.join('\n')}\n</g>\n</svg>\n`; }
+
+/* ================= planning ================= */
+function link(a,b,loops){ const d=D(a,b); if(d<0.05) return null;
+  if(P.join==='frame'){ let best=null; for(const L of loops){ const pa=proj(L,a), pb=proj(L,b); if(pa.d<=P.snap && pb.d<=P.snap){ const r=arcPts(L,pa,pb); const len=r.len+pa.d+pb.d; if(len<=P.joinMax && (!best||len<best.len)) best={len,pts:[a,pa.pt,...r.pts,pb.pt,b]}; } }
+    if(best) return {kind:'join',em:P.frameE,glide:P.frameE<=0,pts:best.pts.filter((q,i,arr)=>i===0||D(q,arr[i-1])>1e-4),onFrame:true}; }
+  if(P.join!=='hop' && d<=P.lineMax) return {kind:'join',em:P.lineE,pts:[a,b]};
+  return 'travel'; }
+// order a set of polylines greedily from cur; returns [{pts}]
+function greedy(list,cur,allowRev){ const rem=list.slice(); const out=[];
+  while(rem.length){ let bi=0,bd=1e18,rv=false; rem.forEach((it,i)=>{ const d0=D(cur,it.pts[0]); if(d0<bd){bd=d0;bi=i;rv=false;} if(allowRev){ const d1=D(cur,it.pts[it.pts.length-1]); if(d1<bd){bd=d1;bi=i;rv=true;} } });
+    const it=rem.splice(bi,1)[0]; const pts=rv? it.pts.slice().reverse() : it.pts; out.push({it,pts}); cur=pts[pts.length-1]; }
+  return out; }
+/* ---- per-layer rotation ---- */
+function angleAt(j){ const r=P.rot; if(!r) return 0;
+  if(P.rotMode==='alt') return (j%2)*r;
+  if(P.rotMode==='swing'){ const A=Math.abs(P.rotMax); if(!A) return 0; const n=Math.max(1,Math.round(A/Math.abs(r))); const ph=j%(2*n); const t=ph<=n?ph:2*n-ph; return Math.sign(r)*Math.min(A,t*Math.abs(r)); }
+  return j*r; }
+function inPoly(p,pts){ let c=false; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ const a=pts[i],b=pts[j]; if(((a[1]>p[1])!==(b[1]>p[1])) && p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+function clipToPoly(pts,poly){ const P2=poly.pts, n=P2.length; const out=[]; let cur=[];
+  const flush=()=>{ if(cur.length>1){ let L=0; for(let k=1;k<cur.length;k++) L+=D(cur[k],cur[k-1]); if(L>0.5) out.push(cur); } cur=[]; };
+  for(let k=1;k<pts.length;k++){ const a=pts[k-1], b=pts[k]; const ts=[0,1]; const r=[b[0]-a[0],b[1]-a[1]];
+    for(let e=0;e<n;e++){ const c=P2[e], d=P2[(e+1)%n]; const q=[d[0]-c[0],d[1]-c[1]]; const den=r[0]*q[1]-r[1]*q[0]; if(Math.abs(den)<1e-12) continue; const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den, u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den; if(t>1e-9&&t<1-1e-9&&u>=-1e-9&&u<=1+1e-9) ts.push(t); }
+    ts.sort((x,y)=>x-y); const at=t=>[a[0]+r[0]*t,a[1]+r[1]*t];
+    for(let i=1;i<ts.length;i++){ const t0=ts[i-1],t1=ts[i]; if(t1-t0<1e-9) continue; const mid=at((t0+t1)/2);
+      if(inPoly(mid,P2)){ if(!cur.length) cur.push(at(t0)); cur.push(at(t1)); } else flush(); } }
+  flush(); return out; }
+function genFrame(){ if(P.frameMode==='rect'){ const w=P.frameW/2, h=P.frameD/2, r=Math.max(0,Math.min(P.frameR,w,h)); let pts;
+    if(r<0.01) pts=[[-w,-h],[w,-h],[w,h],[-w,h]];
+    else { pts=[]; const cs=[[w-r,-h+r,-90],[w-r,h-r,0],[-w+r,h-r,90],[-w+r,-h+r,180]]; const n=Math.max(4,Math.ceil(r*Math.PI/2/0.8)); for(const [x,y,a0] of cs) for(let k=0;k<=n;k++){ const a=(a0+90*k/n)*Math.PI/180; pts.push([x+r*Math.cos(a),y+r*Math.sin(a)]); } }
+    const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
+  if(P.frameMode==='circle'){ const r=P.frameDia/2; const n=Math.max(48,Math.ceil(2*Math.PI*r/0.8)); const pts=[]; for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; pts.push([r*Math.cos(a),r*Math.sin(a)]); } const L={pts,closed:true,sw:0,gen:true}; prepLoop(L); return L; }
+  return null; }
+// shorten line ends that sit on (or near) the frame so the end bead overlaps the frame bead by endOv% of the line width
+function trimStart(pts,t){ if(t<=0) return pts; let k=1, acc=0; while(k<pts.length){ const L=D(pts[k-1],pts[k]); if(acc+L>t){ const u=(t-acc)/L; const a=pts[k-1],b=pts[k]; return [[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u]].concat(pts.slice(k)); } acc+=L; k++; } return null; }
+function trimToFrame(parts,frames){ const t=(wWall()+wFrame())/2*(1-P.endOv/100); if(!frames.length) return parts; const out=[];
+  for(let pts of parts){ for(const end of [0,1]){ if(!pts) break; const p=end? pts[pts.length-1] : pts[0]; let dmin=1e9; for(const F of frames) dmin=Math.min(dmin,proj(F,p).d);
+      if(dmin<t-1e-6){ let q = end? pts.slice().reverse() : pts; const dist=pp=>{ let m=1e9; for(const F of frames) m=Math.min(m,proj(F,pp).d); return m; };
+        // find the arc length along the line at which the distance to the frame reaches t (lines may meet the frame at a slant)
+        let lo=0, hi=Math.min(t*12, 25); let cand=trimStart(q,hi); if(cand && dist(cand[0])<t) lo=hi; else { for(let it=0;it<24;it++){ const md=(lo+hi)/2; const c=trimStart(q,md); if(c && dist(c[0])<t) lo=md; else hi=md; } }
+        q=trimStart(q,hi); pts = q? (end? q.reverse() : q) : null; } }
+    if(pts && pts.length>1){ let L=0; for(let k=1;k<pts.length;k++) L+=D(pts[k],pts[k-1]); if(L>0.5) out.push(pts); } }
+  return out; }
+const rotCache=new Map();
+function itemsAt(deg){ if(P.frameMode!=='svg') return itemsGen(deg||0); deg=deg||0; if(!src.items.some(i=>i.closed) && !deg) return src.items; const key=deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+  const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c]; const out=[];
+  const realLoops=src.items.filter(i=>i.closed); const clip=P.rotTarget==='lines' && realLoops.length ? realLoops.reduce((x,y)=>y.area>x.area?y:x) : null;
+  for(const it of src.items){
+    if(it.closed){ if(P.rotTarget==='all'){ const L=Object.assign({},it,{pts:it.pts.map(R)}); prepLoop(L); out.push(L); } else out.push(it); continue; }
+    const rp=it.pts.map(R); const parts=trimToFrame(clip&&deg? clipToPoly(rp,clip) : [rp], realLoops.map(L=>P.rotTarget==='all'&&deg? out.find(o=>o.id===L.id)||L : L)); for(const pp of parts) out.push(Object.assign({},it,{pts:pp})); }
+  rotCache.set(key,out); return out; }
+// frame made in the app (角・丸・なし): every SVG shape is pattern; pattern is rotated and clipped by the frame
+function itemsGen(deg){ const key='g'+deg.toFixed(4)+P.rotTarget; if(rotCache.has(key)) return rotCache.get(key);
+  const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const R=p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c];
+  let F=genFrame(); if(F && deg && P.rotTarget==='all'){ F=Object.assign({},F,{pts:F.pts.map(R)}); prepLoop(F); }
+  const out=F?[F]:[];
+  for(const it of src.items){ const rp=deg? it.pts.map(R) : it.pts;
+    if(it.closed){ if(!F || rp.every(p=>inPoly(p,F.pts))){ const L=Object.assign({},it,{pts:rp}); prepLoop(L); out.push(L); continue; } }
+    const pp=it.closed? rp.concat([rp[0]]) : rp; const parts=F? trimToFrame(clipToPoly(pp,F),[F]) : [pp]; for(const q of parts) out.push(Object.assign({},it,{pts:q,closed:false})); }
+  rotCache.set(key,out); return out; }
+function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
+  const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:thick(L,'frame')}); cur=pts[pts.length-1]; } };
+  if(P.loops==='first') doLoops();
+  if(P.order==='svg'){ for(const it of opens){ seq.push({kind:'wall',pts:it.pts,m:thick(it,'wall')}); cur=it.pts[it.pts.length-1]; } }
+  else for(const g of greedy(opens,cur,true)){ seq.push({kind:'wall',pts:g.pts,m:thick(g.it,'wall')}); cur=g.pts[g.pts.length-1]; }
+  if(P.loops==='last') doLoops();
+  return {seq,loops}; }
+function swM(it){ if(!P.useSW||!it.sw) return 1; return Math.min(P.wMax,Math.max(P.wMin,it.sw/P.lineW)); }
+function thick(it,kind){ return swM(it)*(kind==='frame'?P.frameWm:P.wallW); }
+const wWall=()=>P.lineW*P.wallW, wFrame=()=>P.lineW*P.frameWm;
+function basePoly(){ if(P.frameMode==='rect'||P.frameMode==='circle') return genFrame(); const loops=(P.frameMode==='svg'?src.items:itemsAt(0)).filter(i=>i.closed&&P.frameMode==='svg'); if(loops.length){ return loops.reduce((a,b)=>b.area>a.area?b:a); }
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const it of src.items) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); }
+  if(P.frameMode==='none'){ const it0=itemsAt(0); mnx=1e9;mny=1e9;mxx=-1e9;mxy=-1e9; for(const it of it0) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); } }
+  const h=P.lineW/2; const L={pts:[[mnx-h,mny-h],[mxx+h,mny-h],[mxx+h,mxy+h],[mnx-h,mxy+h]],closed:true,synthetic:true}; prepLoop(L); return L; }
+function hatch(poly,ang,pitch,inset){ const c=Math.cos(ang), s=Math.sin(ang); const R=poly.pts.map(p=>[p[0]*c+p[1]*s, -p[0]*s+p[1]*c]); let y0=1e9,y1=-1e9; for(const p of R){ y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
+  const segs=[]; const n=R.length; const first=y0+inset*0.75;
+  for(let y=first; y<=y1-inset*0.75+1e-9; y+=pitch){ const xs=[]; for(let k=0;k<n;k++){ const a=R[k],b=R[(k+1)%n]; if((a[1]<=y)!==(b[1]<=y)){ xs.push(a[0]+(y-a[1])/(b[1]-a[1])*(b[0]-a[0])); } } xs.sort((u,v)=>u-v);
+    for(let k=0;k+1<xs.length;k+=2){ const xa=xs[k]+inset, xb=xs[k+1]-inset; if(xb-xa>0.5) segs.push({pts:[[xa,y],[xb,y]].map(p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c])}); } }
+  return segs; }
+function planBottom(k,cur){ const base=basePoly(); const seq=[]; const pitch=P.lineW*P.fillPitch;
+  const lp=loopFrom(base,cur); seq.push({kind:'fill',pts:lp,m:1}); cur=lp[lp.length-1];
+  for(const g of greedy(hatch(base,(k%2)*Math.PI/2,pitch,P.lineW*0.9),cur,true)){ seq.push({kind:'fill',pts:g.pts,m:1}); cur=g.pts[g.pts.length-1]; }
+  return {seq,loops:[],fillPitch:pitch}; }
+
+function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.max(1,Math.round(P.height/lh)); const nB=Math.min(P.bottomN,nTot); const pts=[]; let cur=[-1e4,-1e4];
+  let joinCnt=0,hopCnt=0,frameJoin=0,longJoin=0; const perLayer=[];
+  rotCache.clear(); let prevDeg=null, maxStep=0, rMax=0; for(const it of itemsAt(0)) if(!(it.gen) && (!it.closed||P.rotTarget==='all'||P.frameMode!=='svg')) for(const q of it.pts) rMax=Math.max(rMax,Math.hypot(q[0],q[1]));
+  // coverage: does the (unrotated) pattern reach every point of the frame at any angle?
+  let cover=null; { const fr = P.frameMode==='svg'? (src.items.filter(i=>i.closed).reduce((x,y)=>!x||y.area>x.area?y:x,null)) : genFrame();
+    if(fr){ let rf=0; for(const q of fr.pts) rf=Math.max(rf,Math.hypot(q[0],q[1])); const pat=src.items.filter(i=>P.frameMode!=='svg'||!i.closed); let a=1e9,b=-1e9,c2=1e9,d2=-1e9; for(const it of pat) for(const q of it.pts){ a=Math.min(a,q[0]); b=Math.max(b,q[0]); c2=Math.min(c2,q[1]); d2=Math.max(d2,q[1]); }
+      const reach=Math.min(-a,b,-c2,d2); cover={rf,reach,ok:reach>=rf-P.lineW*0.5}; } }
+  let degMin=0,degMax=0; for(let k=nB;k<nTot;k++){ const d=angleAt(k-nB); degMin=Math.min(degMin,d); degMax=Math.max(degMax,d); if(prevDeg!==null) maxStep=Math.max(maxStep,Math.abs(d-prevDeg)); prevDeg=d; }
+  for(let k=0;k<nTot;k++){ const Z=(k+1)*lh; const isB=k<nB; const deg=isB?0:angleAt(k-nB); const plan=isB? planBottom(k,cur) : planWall(cur,deg); const f=k===0?P.vFirst:P.baseF; let lj=0,lhop=0,lfr=0;
+    plan.seq.forEach((sg,si)=>{ const a=sg.pts[0];
+      if(si===0){ if(!pts.length) pts.push({X:a[0],Y:a[1],Z,travel:true,layer:k,m:1,f,kind:sg.kind});
+        else if(D(cur,a)<=P.lineW*1.5) pts.push({X:a[0],Y:a[1],Z,nd:true,layer:k,m:1,f,kind:sg.kind,em:0});
+        else pts.push({X:a[0],Y:a[1],Z,travel:true,layer:k,m:1,f,kind:sg.kind}); }
+      else { let L;
+        if(isB){ const dd=D(cur,a); L = dd<0.05? null : (dd<=plan.fillPitch*2.5 ? {kind:'fill',em:1,pts:[cur,a]} : 'travel'); }
+        else L=link(cur,a,plan.loops);
+        if(L==='travel'){ pts.push({X:a[0],Y:a[1],Z,travel:true,layer:k,m:1,f,kind:sg.kind}); lhop++; }
+        else if(L){ for(let q=1;q<L.pts.length;q++) pts.push({X:L.pts[q][0],Y:L.pts[q][1],Z,layer:k,m:1,f,em:L.em,kind:L.kind,glide:!!L.glide}); if(!isB){ lj++; if(L.onFrame) lfr++; } } }
+      for(let q=1;q<sg.pts.length;q++) pts.push({X:sg.pts[q][0],Y:sg.pts[q][1],Z,layer:k,m:sg.m,f,em:1,kind:sg.kind});
+      cur=sg.pts[sg.pts.length-1]; });
+    if(!isB){ perLayer.push({lj,lhop,lfr}); } }
+  // stats
+  let lenP=0,lenT=0,time=0; for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); if(b.travel){ lenT+=s+2*P.hop; time+=(s+2*P.hop)/P.travelF; } else { if(!b.nd && !b.glide) lenP+=s; time+=s/b.f; } }
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const p of pts){ mnx=Math.min(mnx,p.X); mny=Math.min(mny,p.Y); mxx=Math.max(mxx,p.X); mxy=Math.max(mxy,p.Y); }
+  bb={mn:[mnx,mny,0],mx:[mxx,mxy,nTot*lh]};
+  const wl=perLayer.reduce((m,x)=>({lj:Math.max(m.lj,x.lj),lhop:Math.max(m.lhop,x.lhop),lfr:Math.max(m.lfr,x.lfr)}),{lj:0,lhop:0,lfr:0});
+  path={pts,layers:nTot,nB,lenP,lenT,time,wl,hops:pts.filter(p=>p.travel).length,rot:{degMin,degMax,maxStep,shift:rMax*maxStep*Math.PI/180,rMax,cover}};
+  checks=analyze(); renderStats(); buildMesh(); }
+
+/* ================= checks (layer independent) ================= */
+function resampleItem(it,step){ const P2=it.closed? it.pts.concat([it.pts[0]]) : it.pts; const out=[]; let s=0; out.push({x:P2[0][0],y:P2[0][1],s:0});
+  for(let k=1;k<P2.length;k++){ const a=P2[k-1],b=P2[k]; const L=D(a,b); const n=Math.max(1,Math.ceil(L/step)); for(let j=1;j<=n;j++){ const t=j/n; out.push({x:a[0]+(b[0]-a[0])*t,y:a[1]+(b[1]-a[1])*t,s:s+L*t}); } s+=L; } return out; }
+function segX(a,b,c,d){ const r=[b[0]-a[0],b[1]-a[1]], q=[d[0]-c[0],d[1]-c[1]]; const den=r[0]*q[1]-r[1]*q[0]; if(Math.abs(den)<1e-12) return false; const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den, u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den; const e=1e-6; return t>e&&t<1-e&&u>e&&u<1-e; }
+function analyze(){ const its=itemsAt(0), w=wWall(); const step=Math.min(0.5,w/3); const cell=w*2;
+  // crossings between open lines (and open vs frame interior crossing)
+  const segs=[]; its.forEach((it,ii)=>{ const pp=it.closed? it.pts.concat([it.pts[0]]):it.pts; for(let k=1;k<pp.length;k++) segs.push({a:pp[k-1],b:pp[k],ii,k,closed:it.closed}); });
+  const g=new Map(); const key=(x,y)=>Math.floor(x/cell)+','+Math.floor(y/cell);
+  segs.forEach((sg,si)=>{ const x0=Math.min(sg.a[0],sg.b[0]),x1=Math.max(sg.a[0],sg.b[0]),y0=Math.min(sg.a[1],sg.b[1]),y1=Math.max(sg.a[1],sg.b[1]); for(let x=Math.floor(x0/cell);x<=Math.floor(x1/cell);x++) for(let y=Math.floor(y0/cell);y<=Math.floor(y1/cell);y++){ const kk=x+','+y; if(!g.has(kk)) g.set(kk,[]); g.get(kk).push(si); } });
+  const seen=new Set(); let cross=0, crossPts=[];
+  for(const arr of g.values()) for(let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++){ const A=segs[arr[i]],B=segs[arr[j]]; if(A.ii===B.ii && Math.abs(A.k-B.k)<=1) continue; const id=arr[i]<arr[j]?arr[i]+'_'+arr[j]:arr[j]+'_'+arr[i]; if(seen.has(id)) continue; seen.add(id); if(segX(A.a,A.b,B.a,B.b)){ cross++; crossPts.push(A.a); } }
+  // contacts and near misses
+  const R=its.map(it=>resampleItem(it,step)); const pg=new Map(); R.forEach((arr,ii)=>arr.forEach((p,pi)=>{ const kk=key(p.x,p.y); if(!pg.has(kk)) pg.set(kk,[]); pg.get(kk).push([ii,pi]); }));
+  const near=w+1.0; let runsC=0, runsG=0; let minGap=1e9;
+  // a "close zone" is a run of points nearer than lineW+1mm to another line; it is a contact if any point is within lineW, otherwise a near miss
+  R.forEach((arr,ii)=>{ let zone=0, zc=false, zg=1e9; const close=()=>{ if(zone){ if(zc) runsC++; else { runsG++; minGap=Math.min(minGap,zg); } } zone=0; zc=false; zg=1e9; };
+    arr.forEach((p,pi)=>{ let dmin=1e9; const cx=Math.floor(p.x/cell),cy=Math.floor(p.y/cell);
+      for(let x=cx-1;x<=cx+1;x++) for(let y=cy-1;y<=cy+1;y++){ const L=pg.get(x+','+y); if(!L) continue; for(const [jj,qj] of L){ const q=R[jj][qj]; if(jj===ii){ const ds=Math.abs(q.s-p.s); const T=its[ii].closed? R[ii][R[ii].length-1].s : 1e18; if(Math.min(ds,T-ds)<3*w) continue; } const d=Math.hypot(q.x-p.x,q.y-p.y); if(d<dmin) dmin=d; } }
+      if(dmin<=near){ zone++; if(dmin<=w) zc=true; else zg=Math.min(zg,dmin-w); } else close(); }); close(); });
+  // ends not on a frame
+  const loops=its.filter(i=>i.closed); let freeEnds=0; for(const it of its) if(!it.closed){ for(const p of [it.pts[0],it.pts[it.pts.length-1]]){ if(!loops.some(L=>proj(L,p).d<=P.snap)) freeEnds++; } }
+  return {cross, contacts:Math.round(runsC/2), gaps:Math.round(runsG/2), minGap, freeEnds, nOpen:its.filter(i=>!i.closed).length, nLoop:loops.length}; }
+
+/* ================= stats ================= */
+function fmtTime(s){ const m=Math.round(s/60); return m>=60? `${Math.floor(m/60)}時間${String(m%60).padStart(2,'0')}分` : `${m}分`; }
+function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTime(p.time)}<small> 出力時間（移動込み）</small>`;
+  $('sSize').textContent=`${(bb.mx[0]-bb.mn[0]).toFixed(1)}×${(bb.mx[1]-bb.mn[1]).toFixed(1)}×${bb.mx[2].toFixed(1)} mm`;
+  $('sLayers').textContent=`${p.layers}（${p.nB}＋${p.layers-p.nB}）`;
+  $('sItems').textContent=`${c.nOpen} 本・${c.nLoop} 個`;
+  $('sJoin').textContent=`${p.wl.lj}（枠上 ${p.wl.lfr}）／${p.wl.lhop}`;
+  $('sRot').textContent= P.rot? `${p.rot.degMin.toFixed(1)}〜${p.rot.degMax.toFixed(1)}°（1層 ${p.rot.maxStep.toFixed(1)}°）` : 'なし';
+  $('sLen').textContent=`${(p.lenP/1000).toFixed(2)} m`; $('sTrav').textContent=`${(p.lenT/1000).toFixed(2)} m（${p.hops} 回）`;
+  $('hud').textContent=`${fmtTime(p.time)} · ${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
+  const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
+  { const ww=wWall(), wf=wFrame(), lh=P.layerH; $('wNote').textContent=`壁の線 ${ww.toFixed(2)} mm・枠 ${wf.toFixed(2)} mm（線幅 ${P.lineW} mm に対して）`;
+    const mx=Math.max(ww,wf)*(P.useSW?P.wMax:1), mn=Math.min(ww,wf)*(P.useSW?P.wMin:1);
+    if(mx>lh*2) add('mid',`最も太い線 ${mx.toFixed(2)} mm は層高 ${lh} mm の2倍を超える。押し広げすぎて縁が波打ちやすい`);
+    if(mn<lh*1.1) add('mid',`最も細い線 ${mn.toFixed(2)} mm は層高 ${lh} mm に近い。線が切れたり、下の層に乗りにくい`); }
+  add(c.cross? 'bad':'', c.cross? `同じ層の中で線が交差：${c.cross} 箇所。交点は二度押しになり盛り上がる` : '同じ層の中の交差なし');
+  add('', `接点（線の中心どうしが線幅 ${wWall().toFixed(2)} mm 以内）：約 ${c.contacts} 箇所。セルを閉じる所`);
+  if(c.gaps) add('mid', `接しそうで離れている所：約 ${c.gaps} 箇所（最小すき間 ${c.minGap.toFixed(2)} mm）。くっつけたいなら SVG で近づける`);
+  if(P.join==='frame' && !c.nLoop) add('mid','枠（閉じた形）がないので、つなぎは直線か移動になる');
+  if(P.join==='frame' && c.nLoop && c.freeEnds) add('mid', `枠から ${P.snap} mm より離れた線の端：${c.freeEnds} 個（ここは直線つなぎか移動）`);
+  add(p.wl.lhop>2?'mid':'', `壁の1層あたりの持ち上げ移動（最大）：${p.wl.lhop} 回${p.wl.lhop?'（始点・終点で垂れや欠けが出やすい）':'（一筆）'}`);
+  if(p.wl.lfr) add(P.frameE>0.2?'mid':'', P.frameE>0? `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出 ×${P.frameE}。同じ所に粘土を足すので枠が太り、外へはみ出しやすい` : `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出なしで滑らせる${P.glideRet?'（その間リトラクト）':''}`);
+  add(P.endOv>75?'mid':'', `線の端と枠の重なり：${P.endOv}%（線の端は枠の中心線から ${((wWall()+wFrame())/2*(1-P.endOv/100)).toFixed(2)} mm 手前で止まる）${P.endOv>75?'。重なりが大きく、端の粘土が枠を押し出しやすい':''}`);
+  if(P.rot && P.rotMode==='alt'){ add('mid', `交互の回転（${P.rot}°）：上の層の線は下の層の線と交点でしか接しない。交点の間は宙に渡るので、交点の間隔が短い絵にする`); }
+  else if(P.rot){ const sh=p.rot.shift; const half=P.lineW/2; const ok=p.rot.rMax>0? (half/p.rot.rMax*180/Math.PI) : 0;
+    add(sh>P.lineW? 'bad' : sh>half? 'mid':'', `回転による1層あたりの最大ずれ：${sh.toFixed(2)} mm（中心から ${p.rot.rMax.toFixed(0)} mm の所）。${sh>P.lineW? '線幅を超え、上の線が下の線から外れる。外側ほど交点でしか支えられない' : sh>half? '線幅の半分を超える。外側の線は傾いて積まれる' : '線幅の半分以内で、ほぼ真上に積める'}${sh>half? `。線幅の半分以内にするなら1層 ${ok.toFixed(2)}° 以下` : ''}`);
+    if(P.rotTarget==='lines' && src.items.some(i=>i.closed)) add('', '回した線は枠で切っている。判定の交差・接点は回す前の絵で数えている'); }
+  if(P.rot && P.rotTarget==='lines' && p.rot.cover){ const cv=p.rot.cover; add(cv.ok?'':'bad', cv.ok? `模様は回転の中心から ${cv.reach.toFixed(0)} mm まであり、枠の一番遠い所（${cv.rf.toFixed(0)} mm）を覆う。回しても枠の中は抜けない` : `回すと枠の角のあたりが抜ける：模様は中心から ${cv.reach.toFixed(0)} mm まで、枠の一番遠い所は ${cv.rf.toFixed(0)} mm。模様を直径 ${Math.ceil(cv.rf*2)} mm の円を覆う大きさに広げる`); }
+  if(P.frameMode==='svg' && !src.items.some(i=>i.closed)) add('mid','SVGに閉じた形がないので枠なし。「枠」で角か丸を選ぶと、アプリが枠をつくって模様を切る');
+  const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>280) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
+  if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・use ${src.nUse}・画像 ${src.nImg}（アウトライン化して読み込む）`);
+  if(P.useSW){ const sws=src.items.filter(i=>!i.closed).map(i=>i.sw); if(sws.length) add('',`線の太さ：${Math.min(...sws).toFixed(2)}〜${Math.max(...sws).toFixed(2)} mm → 倍率 ×${swM({sw:Math.min(...sws)}).toFixed(2)}〜×${swM({sw:Math.max(...sws)}).toFixed(2)}`); }
+  $('warns').innerHTML=W.join(''); }
+
+/* ================= 3D ================= */
+const glc=$('gl'); const renderer=new THREE.WebGLRenderer({canvas:glc,antialias:true}); renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const scene=new THREE.Scene(); const persp=new THREE.PerspectiveCamera(35,1,0.5,5000); const ortho=new THREE.OrthographicCamera(-1,1,1,-1,0.1,10000); let camera=persp;
+// parallel projection: walls keep their true width on screen (perspective shows the side faces of tall walls away from the centre, which looks like extra thickness)
+function setOrtho(on){ camera=on?ortho:persp; const b=$('btnProj'); b.setAttribute('aria-pressed',on?'true':'false'); b.textContent=on?'平行投影':'遠近投影'; }
+scene.add(new THREE.AmbientLight(0xffffff,0.55)); const dl=new THREE.DirectionalLight(0xffffff,0.75); dl.position.set(150,-200,300); scene.add(dl); const dl2=new THREE.DirectionalLight(0xffffff,0.25); dl2.position.set(-200,150,100); scene.add(dl2);
+let grid=null; const target=new THREE.Vector3(); const sph={r:300,th:0.9,ph:1.0};
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function colorOf(c){ return new THREE.Color(c); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid) scene.remove(grid); grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); if(path) buildMesh(); }
+function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
+function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:220; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
+function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); const a=freeArea();
+  persp.aspect=w/h; persp.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); persp.updateProjectionMatrix();
+  const hh=sph.r*Math.tan(persp.fov*Math.PI/360); ortho.left=-hh*w/h; ortho.right=hh*w/h; ortho.top=hh; ortho.bottom=-hh; ortho.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); ortho.updateProjectionMatrix(); }
+function render(){ resize(); updateCam(); renderer.render(scene,camera); }
+let drag=null; glc.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}; glc.setPointerCapture(e.pointerId); });
+glc.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x,dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+  if(drag.b===2||drag.sh){ const s=sph.r*0.0015; const right=new THREE.Vector3(-Math.sin(sph.th),Math.cos(sph.th),0); const up=new THREE.Vector3(-Math.cos(sph.ph)*Math.cos(sph.th),-Math.cos(sph.ph)*Math.sin(sph.th),Math.sin(sph.ph)); target.addScaledVector(right,-dx*s); target.addScaledVector(up,dy*s); }
+  else { sph.th-=dx*0.008; sph.ph=Math.min(3.0,Math.max(0.02,sph.ph-dy*0.008)); } render(); });
+const endDrag=()=>{drag=null;}; glc.addEventListener('pointerup',endDrag); glc.addEventListener('pointercancel',endDrag); glc.addEventListener('contextmenu',e=>e.preventDefault());
+glc.addEventListener('wheel',e=>{ e.preventDefault(); sph.r=Math.min(2000,Math.max(10,sph.r*Math.exp(e.deltaY*0.0015))); render(); },{passive:false});
+let pinch=null; glc.addEventListener('touchstart',e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); },{passive:true});
+glc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); sph.r=Math.min(2000,Math.max(10,sph.r*pinch/d)); pinch=d; drag=null; render(); } },{passive:true});
+function fit(){ if(!bb) return; target.set((bb.mn[0]+bb.mx[0])/2,(bb.mn[1]+bb.mx[1])/2,bb.mx[2]/2); const a=freeArea(); const t=Math.tan(persp.fov*Math.PI/360);
+  const W=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]), H=bb.mx[2];
+  if(a.w>0&&a.ah>50&&a.aw>50){ const fill=0.85; const vh=H*Math.sin(sph.ph)+W*Math.abs(Math.cos(sph.ph))*0.8; sph.r=Math.max(vh*a.h/(2*t*fill*a.ah), W*a.h/(2*t*fill*a.aw))+W*0.3; } else sph.r=W*2.2; render(); }
+$('btnFit').onclick=()=>{ setOrtho(false); sph.th=-1.25; sph.ph=0.9; fit(); }; $('btnTop').onclick=()=>{ setOrtho(true); sph.ph=0.02; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ setOrtho(true); sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
+$('btnProj').onclick=()=>{ setOrtho(camera===persp); render(); };
+
+const CH=8000; let meshes=[], travelLine=null, head=null;
+function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispose(); } meshes=[];
+  // "head": the segment the nozzle is on, drawn from its start up to the nozzle so long straight lines grow during playback
+  if(!head){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(24),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(24),3)); const idx=[]; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(k,4+k,4+k2, k,4+k2,k2); } idx.push(0,1,2, 0,2,3, 4,6,5, 4,7,6); g.setIndex(idx); head=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0,side:THREE.DoubleSide})); head.frustumCulled=false; head.visible=false; scene.add(head); }
+  if(travelLine){ scene.remove(travelLine); travelLine.geometry.dispose(); travelLine=null; }
+  const pts=path.pts, n=pts.length, lh=P.layerH;
+  const kc={wall:colorOf(css('--k-wall')),frame:colorOf(css('--k-frame')),join:colorOf(css('--k-join')),fill:colorOf(css('--k-fill'))};
+  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0.0,side:THREE.DoubleSide}); path.kc=kc;
+  const sameRun=(i,j)=> j>=0 && j<n && !(pts[Math.max(i,j)].travel) && !(pts[Math.max(i,j)].nd) && !(pts[Math.max(i,j)].glide);
+  // one quad tube per drawn segment (i-1 -> i); width, height and colour come from the segment itself (point i),
+  // so a wall that starts where a no-extrusion join ended is not drawn tapered. Ring positions use the averaged direction at each point.
+  // offset direction at point j for the segment whose unit normal is (sx,sy): a mitre with the neighbouring segment when the corner
+  // keeps the tube's true width along the whole segment; for very sharp tips the mitre length is capped
+  const segN=(i)=>{ const a=pts[i-1], b=pts[i]; const dx=b.X-a.X, dy=b.Y-a.Y; const l=Math.hypot(dx,dy)||1; return [-dy/l, dx/l]; };
+  const nrm=(j,own,other)=>{ if(!other) return own; let mx=own[0]+other[0], my=own[1]+other[1]; const ml=Math.hypot(mx,my); if(ml<1e-6) return own; mx/=ml; my/=ml; const c=mx*own[0]+my*own[1]; const k=Math.min(1/Math.max(c,1e-6), 2.5); return [mx*k, my*k]; };  // mitre, length capped at 2.5x half-width so very sharp tips stay joined
+  for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*8*3), col=new Float32Array(cn*8*3); const idx=[]; const idxEnd=new Uint32Array(cn);
+    for(let i=c0;i<c1;i++){ const li=i-c0; const p=pts[i];
+      if(i>0 && !p.travel && !p.nd && !p.glide){ const q=pts[i-1]; const em=p.em==null?1:p.em; const hw=P.lineW*p.m*Math.max(0.35,Math.sqrt(em||0.12))/2; const dz=lh*(em<1?0.6:1); const cc=kc[p.kind]||kc.wall;
+        const own=segN(i); const prevN = (i-1>0 && sameRun(i-1,i-2) && Math.hypot(pts[i-1].X-pts[i-2].X,pts[i-1].Y-pts[i-2].Y)>1e-6) ? segN(i-1) : null; const nextN = (i+1<n && sameRun(i,i+1) && Math.hypot(pts[i+1].X-p.X,pts[i+1].Y-p.Y)>1e-6) ? segN(i+1) : null;
+        const [nax,nay]=nrm(i-1,own,prevN), [nbx,nby]=nrm(i,own,nextN); const ring=(P0,nx,ny)=>[[P0.X+nx*hw,P0.Y+ny*hw,P0.Z],[P0.X-nx*hw,P0.Y-ny*hw,P0.Z],[P0.X-nx*hw,P0.Y-ny*hw,P0.Z-dz],[P0.X+nx*hw,P0.Y+ny*hw,P0.Z-dz]];
+        const v=ring({X:q.X,Y:q.Y,Z:p.Z},nax,nay).concat(ring(p,nbx,nby));
+        for(let k=0;k<8;k++){ const o=(li*8+k)*3; pos[o]=v[k][0]; pos[o+1]=v[k][1]; pos[o+2]=v[k][2]; col[o]=cc.r; col[o+1]=cc.g; col[o+2]=cc.b; }
+        const A=li*8, B=li*8+4; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } }
+      idxEnd[li]=idx.length; }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.setIndex(new THREE.Uint16BufferAttribute(idx,1)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,mat); m.userData={idxEnd,c0,total:idx.length}; m.frustumCulled=false; scene.add(m); meshes.push(m); }
+  // travel lines (lift, move, lower)
+  const tv=[], tc=[]; path.travIdx=[]; path.travV=[]; const cT=colorOf(css('--k-travel')), cJ=colorOf(css('--k-join'));
+  for(let i=1;i<n;i++){ const p=pts[i]; const q=pts[i-1];
+    if(p.travel){ const hz=Math.max(q.Z,p.Z)+P.hop; tv.push(q.X,q.Y,q.Z, q.X,q.Y,hz, q.X,q.Y,hz, p.X,p.Y,hz, p.X,p.Y,hz, p.X,p.Y,p.Z); for(let k=0;k<6;k++) tc.push(cT.r,cT.g,cT.b); }
+    else if(p.glide){ const z=p.Z+0.15; tv.push(q.X,q.Y,z, p.X,p.Y,z); tc.push(cJ.r,cJ.g,cJ.b, cJ.r,cJ.g,cJ.b); }
+    else continue; path.travIdx.push(i); path.travV.push(tv.length/3); }
+  if(tv.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tv),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(tc),3)); travelLine=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.9})); travelLine.frustumCulled=false; travelLine.visible=$('showTravel').checked; scene.add(travelLine); }
+  const ct=new Float64Array(n); for(let i=1;i<n;i++){ const a=pts[i-1],b=pts[i]; const s=Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z); ct[i]=ct[i-1]+(b.travel?(s+2*P.hop)/P.travelF:s/b.f); } path.ct=ct;
+  applyProgress(play.prog); }
+
+/* ================= playback ================= */
+const play={on:false,prog:1,last:0,raf:0}; let nozzle=null;
+function makeNozzle(){ const grp=new THREE.Group(); const m=new THREE.MeshStandardMaterial({color:0x8a8f99,roughness:0.5,metalness:0.4});
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(2.5,6,24),m); cone.rotation.x=-Math.PI/2; cone.position.z=3; grp.add(cone);
+  const cyl=new THREE.Mesh(new THREE.CylinderGeometry(4,4,16,24),m); cyl.rotation.x=Math.PI/2; cyl.position.z=14; grp.add(cyl);
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,12),new THREE.MeshStandardMaterial({color:colorOf(css('--warn'))})); grp.add(tip); return grp; }
+const KN={wall:'壁の線',frame:'枠',join:'つなぎ',fill:'底面'};
+function applyProgress(prog){ if(!meshes.length||!path) return; play.prog=Math.min(1,Math.max(0,prog)); const pts=path.pts, n=pts.length;
+  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo;
+  for(const m of meshes){ const c0=m.userData.c0, len=m.userData.idxEnd.length; let cnt; if(play.prog>=1 || i>=c0+len-1) cnt=m.userData.total; else if(i<c0) cnt=0; else cnt=m.userData.idxEnd[i-c0]; m.geometry.setDrawRange(0,cnt); }
+  if(travelLine){ let c=0; if(play.prog>=1) c=path.travIdx.length; else { let l=0,h=path.travIdx.length; while(l<h){ const md=(l+h)>>1; if(path.travIdx[md]<=i) l=md+1; else h=md; } c=l; } travelLine.geometry.setDrawRange(0,c?path.travV[c-1]:0); }
+  if(!nozzle){ nozzle=makeNozzle(); scene.add(nozzle); }
+  const p=pts[i], q=pts[Math.min(n-1,i+1)]; const u=(q!==p && path.ct[i+1]>path.ct[i])? (T-path.ct[i])/(path.ct[i+1]-path.ct[i]) : 0;
+  const NX=p.X+(q.X-p.X)*u, NY=p.Y+(q.Y-p.Y)*u, NZ=p.Z+(q.Z-p.Z)*u;
+  nozzle.position.set(NX,NY,NZ); nozzle.visible = play.prog<1 || play.on;
+  if(head){ const drawn = play.prog<1 && q!==p && !q.travel && !q.nd && !q.glide && u>0;
+    head.visible=drawn;
+    if(drawn){ const em=q.em==null?1:q.em; const hw=P.lineW*q.m*Math.max(0.35,Math.sqrt(em||0.12))/2, dz=P.layerH*(em<1?0.6:1); const dx=q.X-p.X, dy=q.Y-p.Y, l=Math.hypot(dx,dy)||1; const nx=-dy/l*hw, ny=dx/l*hw; const z=q.Z;
+      const v=[[p.X+nx,p.Y+ny,z],[p.X-nx,p.Y-ny,z],[p.X-nx,p.Y-ny,z-dz],[p.X+nx,p.Y+ny,z-dz],[NX+nx,NY+ny,z],[NX-nx,NY-ny,z],[NX-nx,NY-ny,z-dz],[NX+nx,NY+ny,z-dz]];
+      const cc=(path.kc&&path.kc[q.kind])||path.kc.wall; const pa=head.geometry.attributes.position.array, ca=head.geometry.attributes.color.array;
+      for(let k=0;k<8;k++){ pa[k*3]=v[k][0]; pa[k*3+1]=v[k][1]; pa[k*3+2]=v[k][2]; ca[k*3]=cc.r; ca[k*3+1]=cc.g; ca[k*3+2]=cc.b; }
+      head.geometry.attributes.position.needsUpdate=true; head.geometry.attributes.color.needsUpdate=true; head.geometry.computeVertexNormals(); head.geometry.computeBoundingSphere(); } }
+  if(!play.scrubbing) $('scrub').value=Math.round(play.prog*1000);
+  const nk=q.travel?'移動':q.glide?'つなぎ（押出なし）':(KN[q.kind]||''); $('playT').textContent = `${play.prog>=1 && !play.on ? '完了 ' : ''}${fmtTime(T)} · 層 ${p.layer+1}/${path.layers} · Z ${p.Z.toFixed(1)} · ${nk}`;
+  render(); }
+function tick(ts){ if(!play.on) return; const dt=(ts-play.last)/1000; play.last=ts; const total=path.ct[path.ct.length-1]; let prog=play.prog + dt*(+$('playSpd').value)/total; if(prog>=1){ prog=1; stopPlay(); } applyProgress(prog); if(play.on) play.raf=requestAnimationFrame(tick); }
+function startPlay(){ if(!path) return; if(play.prog>=1) play.prog=0; play.on=true; play.last=performance.now(); $('btnPlay').textContent='❚❚ 停止'; play.raf=requestAnimationFrame(tick); }
+function stopPlay(){ play.on=false; cancelAnimationFrame(play.raf); $('btnPlay').textContent='▶ 再生'; if(path) applyProgress(play.prog); }
+$('btnPlay').onclick=()=>{ play.on?stopPlay():startPlay(); };
+let scrubRaf=0; $('scrub').addEventListener('input',e=>{ if(play.on) stopPlay(); play.scrubbing=true; const v=+e.target.value/1000; cancelAnimationFrame(scrubRaf); scrubRaf=requestAnimationFrame(()=>applyProgress(v)); });
+$('scrub').addEventListener('change',e=>{ play.scrubbing=false; applyProgress(+e.target.value/1000); });
+$('showTravel').addEventListener('change',()=>{ if(travelLine){ travelLine.visible=$('showTravel').checked; render(); } });
+
+/* ================= G-code ================= */
+function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(Math.PI*(P.filD/2)**2)*P.eMul; const tf=Math.round(P.travelF*60); const f3=v=>v.toFixed(3); const X=v=>f3(v+P.bedX), Y=v=>f3(v+P.bedY);
+  const out=[`; ClayLine Lab  ${new Date().toISOString().slice(0,16)}  source ${svgName}`,
+    `; layer ${lh}mm  height ${P.height}mm  layers ${p.layers} (bottom ${p.nB})  lineW ${P.lineW}  speed ${P.baseF}/${P.vFirst}mm/s`,
+    `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} glideRetract ${P.glideRet?'on':'off'} endOverlap ${P.endOv}% lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
+    `; rotate ${P.rot}deg/layer mode ${P.rotMode} swing ${P.rotMax}deg target ${P.rotTarget}`,
+    `; frame ${P.frameMode}${P.frameMode==='rect'?` ${P.frameW}x${P.frameD} r${P.frameR}`:P.frameMode==='circle'?` dia ${P.frameDia}`:''}`,
+    `; thickness wall x${P.wallW} frame x${P.frameWm}`,
+    `; svg units ${src.unitNote} scale ${P.scale}% x${P.sx}% y${P.sy}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
+    `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
+  out.push($('gStart').value.trim()); let E=0;
+  if(P.skirt){ const o=MP.skirtOff, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
+    out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
+    for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
+  let lastF=-1,lastL=-1,lastK='',gl=false;
+  for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null;
+    if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); gl=false; lastF=-1; }
+    if(r.layer!==lastL){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastL=r.layer; }
+    if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q?q.Z:0,r.Z)+P.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); E+=P.prime; out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract${P.prime?' +prime':''}`); lastF=-1; lastK=''; continue; }
+    if(r.nd){ out.push(`G1 F${Math.round(MP.zF*60)} X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)}`); lastF=Math.round(MP.zF*60); continue; }
+    if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
+    const tk=r.kind==='join'?'JOIN':r.kind==='frame'?'FRAME':r.kind==='fill'?'FILL':'WALL'; if(tk!==lastK){ out.push(`;TYPE:${tk}`); lastK=tk; }
+    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
+  out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
+let dlCap; async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
+function setMsg(t,cls){ const m=$('msg'); m.textContent=t; m.className='msg '+(cls||''); }
+async function saveText(base,ext,txt){ const dl=await getDl();
+  if(dl){ try{ await dl.save({filename:`${base}_${ext}.txt`,data:txt}); setMsg(`保存しました（${(txt.length/1024).toFixed(0)} KB）。拡張子を .${ext} に直して使用`,'ok'); }catch(e){ setMsg(e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした：'+(e&&e.message||e),'err'); } return; }
+  try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${base}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); setMsg(`${base}.${ext} を書き出しました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ setMsg('この表示では保存できません。コピーを使ってください','err'); } }
+const safe=s=>(s||'clayline').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_');
+$('btnSave').onclick=()=>{ if(path) saveText(safe($('fname').value),'gcode',gcode()); };
+$('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
+$('btnSampleSave').onclick=()=>saveText('clayline_sample_tray','svg',sampleSVGText());
+
+/* ================= load & wiring ================= */
+function loadText(text,name,refit){ try{ svgText=text; svgName=name; src=parseSVG(text); }catch(e){ $('srcInfo').textContent='読み込めませんでした：'+(e.message||e); return; }
+  $('srcInfo').textContent=`${name}：線 ${src.items.filter(i=>!i.closed).length} 本、閉じた形 ${src.items.filter(i=>i.closed).length} 個、${src.w.toFixed(1)}×${src.h.toFixed(1)} mm（${src.unitNote}）`;
+  if(refit){ $('fname').value=safe(name.replace(/\.svg$/i,'')); }
+  build(); if(refit){ sph.th=-1.25; sph.ph=0.9; fit(); } }
+function readFile(f){ const r=new FileReader(); r.onload=()=>loadText(r.result,f.name,true); r.readAsText(f); }
+$('btnLoad').onclick=()=>$('fileIn').click();
+$('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) readFile(f); e.target.value=''; });
+function useSampleFrame(){ $('frameMode').value='rect'; $('frameW').value=90; $('frameD').value=60; $('frameR').value=0; frameUI(); }
+function frameUI(){ const m=$('frameMode').value; document.querySelectorAll('.frameRect').forEach(e=>e.hidden=m!=='rect'); document.querySelectorAll('.frameCirc').forEach(e=>e.hidden=m!=='circle'); }
+$('frameMode').addEventListener('change',frameUI);
+$('btnSample').onclick=()=>{ useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true); if(typeof record==='function') record(); };
+const view=$('view'); view.addEventListener('dragover',e=>{ e.preventDefault(); view.classList.add('dragging'); }); view.addEventListener('dragleave',e=>{ if(e.target===view||!view.contains(e.relatedTarget)) view.classList.remove('dragging'); });
+view.addEventListener('drop',e=>{ e.preventDefault(); view.classList.remove('dragging'); const f=e.dataTransfer.files[0]; if(f&&/\.svg$/i.test(f.name)) readFile(f); });
+let timer=0, needParse=false; const reparse=new Set(['pxUnit','scale','sx','sy','step']);
+for(const id of ids){ const el=$(id); el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ if(reparse.has(id)) needParse=true; clearTimeout(timer); timer=setTimeout(()=>{ if(!svgText) return; const np=needParse; needParse=false; if(np) loadText(svgText,svgName,false); else build(); },150); }); }
+window.addEventListener('resize',render);
+const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',applyTheme); new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); btnInfo.textContent=on?'推定・判定を隠す':'推定・判定を表示'; try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
+btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cll_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
+if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
+/* ================= settings: save / load / reset / undo / redo ================= */
+const SKEYS=ids.concat(['lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'].filter(k=>!ids.includes(k)));
+const TKEYS=['gStart','gEnd'];
+function snap(){ const o={}; for(const k of SKEYS){ const el=$(k); if(el) o[k]= el.type==='checkbox'? el.checked : el.value; } return o; }
+function applySnap(o,withText){ for(const k of SKEYS){ if(!(k in o)) continue; const el=$(k); if(!el) continue; if(el.type==='checkbox') el.checked=!!o[k]; else el.value=o[k]; }
+  if(withText) for(const k of TKEYS) if(typeof o[k]==='string') $(k).value=o[k];
+  if(window.ClayPrinter) ClayPrinter.reapply();
+  frameUI(); clearTimeout(timer); needParse=false; if(svgText) loadText(svgText,svgName,false); }
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+let defaults=null; const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
+function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
+function record(){ if(applying) return; const s=snap(); if(hist.cur && same(s,hist.cur)) return; if(hist.cur) hist.past.push(hist.cur); if(hist.past.length>200) hist.past.shift(); hist.cur=s; hist.future=[]; histUI(); }
+function undo(){ clearTimeout(histTimer); record(); if(!hist.past.length) return; hist.future.push(hist.cur); hist.cur=hist.past.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('元に戻しました'); }
+function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) return; hist.past.push(hist.cur); hist.cur=hist.future.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('やり直しました'); }
+function setSetMsg(t,cls){ const m=$('setMsg'); m.textContent=t; m.className='msg '+(cls||''); clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },3000); }
+for(const k of SKEYS){ const el=$(k); if(!el) continue; el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); }); }
+$('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
+// save: settings + G-code start/end + the SVG itself, as one JSON file
+$('btnSetSave').onclick=()=>{ const o={app:'ClayLine Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),svg:svgText?{name:svgName,text:svgText}:null};
+  saveText(safe($('fname').value)+'_settings','json',JSON.stringify(o,null,1)).then(()=>setSetMsg($('msg').textContent,$('msg').className.replace('msg','').trim())); };
+$('btnSetLoad').onclick=()=>$('setIn').click();
+$('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>{ let o; try{ o=JSON.parse(r.result); }catch(err){ setSetMsg('設定ファイルとして読めませんでした（JSON ではありません）','err'); return; }
+    if(!o||!o.settings){ setSetMsg('ClayLine Lab の設定ファイルではありません','err'); return; }
+    record(); applying=true;
+    if(o.svg&&o.svg.text){ try{ svgText=o.svg.text; svgName=o.svg.name||'saved.svg'; }catch(_){} }
+    applySnap(Object.assign({},o.settings,o.text||{}),true); if(o.svg&&o.svg.text){ $('fname').value=safe(svgName.replace(/\.svg$/i,'')); sph.th=-1.25; sph.ph=0.9; fit(); }
+    applying=false; record(); setSetMsg(`${f.name} を読み込みました${o.svg?'（SVG も復元）':''}`,'ok'); }; r.readAsText(f); });
+// reset: two-step button (no confirm dialog in the viewer)
+let resetArm=0; $('btnSetReset').onclick=()=>{ const b=$('btnSetReset'); if(!resetArm){ b.classList.add('armed'); b.textContent='もう一度押すとリセット'; resetArm=setTimeout(()=>{ b.classList.remove('armed'); b.textContent='リセット'; resetArm=0; },3000); return; }
+  clearTimeout(resetArm); resetArm=0; b.classList.remove('armed'); b.textContent='リセット'; record(); applying=true; applySnap(Object.assign({},defaults.s,defaults.t),true); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); };
+// shortcuts: leave text areas and the file-name box to the browser's own undo
+document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));
+  const k=e.key.toLowerCase();
+  if(k==='s'){ e.preventDefault(); $('btnSetSave').click(); return; }
+  if(native) return;
+  if(k==='z' && !e.shiftKey){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); undo(); }
+  else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
+applyTheme(); useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true);
+defaults={s:snap(),t:Object.fromEntries(TKEYS.map(k=>[k,$(k).value]))}; record();
+window.__cll={gcode:()=>gcode(),get path(){return path;},get checks(){return checks;},get src(){return src;},loadText};
+})();
+</script>

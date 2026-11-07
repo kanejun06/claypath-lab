@@ -9,7 +9,7 @@ const TOOLS=[
   {name:'ClayLine Lab', sub:'SVGの線から', dir:'svg/'},
   {name:'ClayMorph Lab', sub:'断面の変化から', dir:'morph/'},
 ];
-const me=document.currentScript; const root=me.src.replace(/shared\/nav\.js(\?.*)?$/,'');
+const me=document.currentScript; const root=(me&&me.src||'').replace(/shared\/nav\.js(\?.*)?$/,'');
 function build(){ const hd=document.querySelector('header'); if(!hd) return;
   hd.querySelectorAll('a.xlink').forEach(a=>a.remove());
   const here=location.href.split(/[?#]/)[0].replace(/index\.html$/,'');
@@ -21,8 +21,12 @@ function build(){ const hd=document.querySelector('header'); if(!hd) return;
 .tooltabs a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 @media (max-width:760px){ .tooltabs{margin-left:0;width:100%} .tooltabs a{flex:1;padding:3px 4px} }`; document.head.appendChild(st);
   const nav=document.createElement('nav'); nav.className='tooltabs'; nav.setAttribute('aria-label','ツールの切り替え');
-  for(const t of TOOLS){ const a=document.createElement('a'); const url=root+t.dir; a.href=url+(location.protocol==='file:'?'index.html':'')+location.search+location.hash; // file:// does not serve a folder's index.html
-    a.innerHTML=`${t.name}<small>${t.sub}</small>`; if(here===url) a.setAttribute('aria-current','page'); nav.appendChild(a); }
+  // single-file builds (standalone/) set window.ClayNavFiles to their sibling file names
+  const files=window.ClayNavFiles; const page=location.pathname.split('/').pop();
+  TOOLS.forEach((t,i)=>{ const a=document.createElement('a');
+    if(files){ a.href=files[i]+location.search+location.hash; if(page===files[i]) a.setAttribute('aria-current','page'); }
+    else { const url=root+t.dir; a.href=url+(location.protocol==='file:'?'index.html':'')+location.search+location.hash; if(here===url) a.setAttribute('aria-current','page'); } // file:// does not serve a folder's index.html
+    a.innerHTML=`${t.name}<small>${t.sub}</small>`; nav.appendChild(a); });
   // header: title and description first, tabs to the right
   const h1=hd.querySelector('h1'), sub=hd.querySelector('.sub'); (sub||h1).after(nav); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();

@@ -1,0 +1,1096 @@
+<!-- built by tools/build-standalone.py from morph/index.html + shared/*.js — edit those, not this file -->
+<title>ClayMorph Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workbench. Left = parameters (scroll), center = 3D path, right = readout + export. Stacks on phone. */
+:root{
+  --bg:#EDEFF2; --panel:#FFFFFF; --fg:#1B2027; --fg2:#5B6572; --line:#D3D8DF;
+  --accent:#2A4DA0; --accent2:#9DB3E6; --warn:#C8461F; --ok:#3B7F5C;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans JP','Hiragino Sans','Noto Sans JP',system-ui,sans-serif;
+  --clay-slow:#2A4DA0; --clay-fast:#E9ECF3; --clay-bad:#C8461F; --view-bg:#E3E6EB; --view-grid:#C9CED6;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15181C; --panel:#1E2228; --fg:#E6E9EE; --fg2:#9AA4B1; --line:#30363E;
+  --accent:#8FAAF0; --accent2:#3C5390; --warn:#F07A50; --ok:#6CC79A;
+  --clay-slow:#6B8BE0; --clay-fast:#C9D1DD; --clay-bad:#F07A50; --view-bg:#0F1114; --view-grid:#2A2F37; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#15181C; --panel:#1E2228; --fg:#E6E9EE; --fg2:#9AA4B1; --line:#30363E;
+  --accent:#8FAAF0; --accent2:#3C5390; --warn:#F07A50; --ok:#6CC79A;
+  --clay-slow:#6B8BE0; --clay-fast:#C9D1DD; --clay-bad:#F07A50; --view-bg:#0F1114; --view-grid:#2A2F37; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:13px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.01em}
+.sub{color:var(--fg2);font-size:12px}
+header a.xlink{color:var(--accent);text-decoration:none;margin-left:auto}
+header a.xlink:hover{text-decoration:underline}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bottom:10px}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);gap:12px;height:calc(100% - 46px);min-height:560px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.side{overflow-y:auto;overflow-x:hidden;padding:10px 22px 10px 12px;scrollbar-gutter:stable;scrollbar-width:thin;display:flex;flex-direction:column;gap:14px}
+.side>section{min-width:0}
+.side::-webkit-scrollbar{width:8px}
+.side::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.side::-webkit-scrollbar-track{background:transparent}
+.view{min-height:420px}
+.view{position:relative;background:var(--view-bg);overflow:hidden}
+.view canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;left:10px;top:10px;font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-variant-numeric:tabular-nums}
+.hud b{font-weight:500;color:var(--warn)}
+.export{position:absolute;right:10px;bottom:10px;width:340px;max-height:calc(100% - 64px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin;z-index:2}
+.export .exphead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg2)}
+.export .msg:empty{display:none}
+.export details[open]{border-top:1px solid var(--line);padding-top:4px}
+.legend{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--fg2);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
+.legend .bar{width:80px;height:8px;border-radius:2px;background:linear-gradient(90deg,var(--clay-slow),var(--clay-fast))}
+.legend select{font:inherit;font-size:11px;padding:1px 3px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.legend .bad{width:10px;height:10px;border-radius:2px;background:var(--clay-bad)}
+.info{position:absolute;right:10px;top:44px;width:290px;max-height:calc(100% - 44px - 96px);overflow-y:auto;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+.info[hidden]{display:none}
+.info .big{font-size:22px}
+.info .stats{font-size:11.5px;gap:1px 8px}
+.info .warn{font-size:11.5px;padding:4px 7px;line-height:1.4}
+.info .warn::before{margin-top:4px}
+.info .warns{gap:3px}
+.info details .note{margin-top:4px}
+#btnInfo[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.viewbtns{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.playbar{position:absolute;left:10px;right:360px;bottom:44px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px}
+.playbar input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.playbar select{font:inherit;font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.playbar .t{flex:0 0 44ch;width:44ch;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+@media (max-width:900px){ .playbar{flex-wrap:wrap} .playbar input[type=range]{flex:1 1 60%} .playbar .t{flex:1 0 100%;width:auto;text-align:left} }
+.shapeprev{display:block;width:100%;height:170px;border:1px solid var(--line);border-radius:4px;background:var(--bg)}
+.shapecap{display:flex;justify-content:center;gap:14px;font-size:10px;font-family:var(--mono);color:var(--fg2);margin:2px 0 4px}
+.shapecap .kB{color:var(--accent2)} .shapecap .kT{color:var(--accent)}
+.profile{display:block;width:100%;height:300px;border:1px solid var(--line);border-radius:4px;background:var(--bg);touch-action:none;cursor:crosshair}
+.profile:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sizebox{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:6px;align-items:center}
+.sizebox .row{grid-column:1;margin:2px 0}
+.sizebox .lock{grid-column:2;grid-row:1/3;align-self:stretch;width:34px;padding:0;font-size:15px;border-radius:6px;position:relative}
+.sizebox .lock[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}
+.sizebox .lock[aria-pressed="false"]{opacity:.45;filter:grayscale(1)}
+.setbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.setbar button[disabled]{opacity:.4;cursor:default}
+.setbar .msg{flex:1;min-width:0;color:var(--fg2)}
+.subh{font-size:12px;font-weight:600;margin:10px 0 2px;padding-top:6px;border-top:1px solid var(--line)}
+.row[hidden]{display:none}
+.svgrow .note{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+section h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--fg2);margin:0 0 6px}
+.row{display:flex;align-items:center;gap:8px;margin:4px 0}
+.row label{flex:1;min-width:0}
+.row input[type=number]{width:70px;font-family:var(--mono);font-size:12px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.row input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.row select{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.row .unit{font-family:var(--mono);font-size:11px;color:var(--fg2);width:34px}
+.row .val{font-family:var(--mono);font-size:12px;width:48px;text-align:right;font-variant-numeric:tabular-nums}
+.toggle{display:flex;align-items:center;gap:6px;font-weight:500}
+.toggle input{accent-color:var(--accent)}
+.curve{display:block;width:100%;height:84px;border:1px solid var(--line);border-radius:4px;background:var(--bg);touch-action:none;cursor:ns-resize}
+.curvecap{display:flex;justify-content:space-between;font-size:10px;color:var(--fg2);font-family:var(--mono);margin-top:2px}
+button{font:inherit;font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.sm{padding:3px 8px;font-size:11px}
+.file{display:flex;gap:6px;flex-wrap:wrap}
+.file input{display:none}
+.stats{display:grid;grid-template-columns:1fr auto;gap:3px 8px;font-size:12px}
+.stats dt{color:var(--fg2)}
+.stats dd{margin:0;font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.big small{font-size:12px;color:var(--fg2);font-family:var(--sans)}
+.warns{display:flex;flex-direction:column;gap:5px}
+.warn{display:flex;gap:7px;align-items:flex-start;font-size:12px;padding:6px 8px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
+.warn::before{content:"";width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:var(--ok)}
+.warn.bad::before{background:var(--warn)}
+.warn.mid::before{background:var(--accent2)}
+textarea{width:100%;font-family:var(--mono);font-size:11px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:5px;resize:vertical}
+.note{font-size:11px;color:var(--fg2)}
+details summary{cursor:pointer;color:var(--fg2);font-size:12px}
+.exp{display:flex;gap:6px;flex-wrap:wrap}
+.exp input[type=text]{flex:1;min-width:0;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.msg{font-size:11px;min-height:16px}
+.msg.err{color:var(--warn)}
+.msg.ok{color:var(--ok)}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto;height:auto}
+  .view{height:min(70vh,520px)}
+  .side{max-height:none}
+}
+section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;pointer-events:none}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+/* narrow screens: stack the overlays (kept last so it wins over the base rules) */
+@media (max-width:760px){
+  .viewbtns{top:44px;left:10px;right:auto}
+  .info{left:10px;right:10px;top:78px;width:auto;max-height:calc(100% - 78px - 190px)}
+  .export{left:10px;right:10px;width:auto}
+  .legend{bottom:96px}
+  .playbar{right:10px;bottom:130px;flex-wrap:nowrap}
+  .playbar .t{display:none}
+  .playbar input[type=range]{flex:1 1 auto}
+}
+</style>
+
+<header>
+  <h1>ClayMorph Lab</h1>
+  <span class="sub">下の断面から上の断面へ、層ごとに形を変えていく器をVaseモードで描く。磁器土／SYNO-SOURCE-3040向け</span>
+  <a class="sub xlink" href="../">STLから描く → ClayPath Lab</a>
+  <a class="sub xlink" style="margin-left:0" href="../svg/">SVGの線から描く → ClayLine Lab</a>
+</header>
+
+<div class="app">
+  <!-- ========== LEFT: parameters ========== -->
+  <div class="panel side" id="left">
+    <div class="setbar">
+      <button class="sm" id="btnUndo" type="button" title="元に戻す（⌘Z / Ctrl+Z）" aria-label="元に戻す" disabled>↶</button>
+      <button class="sm" id="btnRedo" type="button" title="やり直す（⇧⌘Z / Ctrl+Y）" aria-label="やり直す" disabled>↷</button>
+      <span class="msg" id="setMsg" aria-live="polite"></span>
+    </div>
+    <section>
+      <h2>形（下の断面 → 上の断面）</h2>
+      <canvas class="shapeprev" id="shapePrev" aria-label="下と上の断面の重ね表示"></canvas>
+      <div class="shapecap"><span class="kB">━ 下</span><span class="kM">┄ 中間</span><span class="kT">━ 上</span></div>
+
+      <div class="subh">下の断面</div>
+      <div class="row"><label for="bKind">形</label><select id="bKind"><option value="circle">円</option><option value="petal">花びら</option><option value="star">星</option><option value="poly">多角形</option><option value="ellipse">楕円</option><option value="svg">SVG</option></select></div>
+      <div class="row svgrow" id="bSvgRow"><button id="bSvgBtn" type="button" class="sm">SVGを読み込む</button><input id="bSvgIn" type="file" accept=".svg,image/svg+xml" hidden><span class="note" id="bSvgName"></span></div>
+      <div class="row" id="bNRow"><label for="bN">数</label><input id="bN" type="range" min="3" max="24" step="1" value="6"><span class="val" id="bNV">6</span></div>
+      <div class="row" id="bARow"><label for="bA" id="bALab">深さ</label><input id="bA" type="range" min="0" max="1" step="0.01" value="0.35"><span class="val" id="bAV">0.35</span></div>
+      <div class="row" id="bRRow"><label for="bR">角の丸み</label><input id="bR" type="range" min="0" max="6" step="1" value="2"><span class="val" id="bRV">2</span></div>
+      <div class="row"><label for="bRot">向き</label><input id="bRot" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="bRotV">0</span><span class="unit">°</span></div>
+      <div class="row"><label for="dB">大きさ（外接円の直径）</label><input id="dB" type="number" step="1" min="10" max="280" value="70"><span class="unit">mm</span></div>
+
+      <div class="subh">上の断面</div>
+      <div class="row"><label for="tKind">形</label><select id="tKind"><option value="circle">円</option><option value="petal" selected>花びら</option><option value="star">星</option><option value="poly">多角形</option><option value="ellipse">楕円</option><option value="svg">SVG</option></select></div>
+      <div class="row svgrow" id="tSvgRow"><button id="tSvgBtn" type="button" class="sm">SVGを読み込む</button><input id="tSvgIn" type="file" accept=".svg,image/svg+xml" hidden><span class="note" id="tSvgName"></span></div>
+      <div class="row" id="tNRow"><label for="tN">数</label><input id="tN" type="range" min="3" max="24" step="1" value="6"><span class="val" id="tNV">6</span></div>
+      <div class="row" id="tARow"><label for="tA" id="tALab">深さ</label><input id="tA" type="range" min="0" max="1" step="0.01" value="0.35"><span class="val" id="tAV">0.35</span></div>
+      <div class="row" id="tRRow"><label for="tR">角の丸み</label><input id="tR" type="range" min="0" max="6" step="1" value="2"><span class="val" id="tRV">2</span></div>
+      <div class="row"><label for="tRot">向き</label><input id="tRot" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="tRotV">0</span><span class="unit">°</span></div>
+      <div class="row"><label for="dT">大きさ（外接円の直径）</label><input id="dT" type="number" step="1" min="10" max="280" value="110"><span class="unit">mm</span></div>
+
+      <div class="subh">高さ方向</div>
+      <div class="sizebox">
+        <div class="row"><label for="hgt">高さ</label><input id="hgt" type="number" step="1" min="5" max="380" value="90"><span class="unit">mm</span></div>
+        <button id="lockProp" class="lock" type="button" aria-pressed="true" title="縦横比を保つ">🔗</button>
+        <div class="row"><label for="dMax">最大径</label><input id="dMax" type="number" step="1" min="10" max="280"><span class="unit">mm</span></div>
+      </div>
+      <div class="row"><label>全体の拡大・縮小</label><button id="sDown" type="button" class="sm">−10%</button><button id="sUp" type="button" class="sm">＋10%</button></div>
+      <div class="note" id="sizeInfo">—</div>
+      <div class="note">🔗 が押されている間は、高さか最大径のどちらかを変えると、もう一方と輪郭の点・上下の大きさが同じ比率で変わる（プロポーションを保つ）。外すと、高さだけ・最大径だけを変えて縦に伸ばしたり横に広げたりできる。±10% はいつも全体を同じ比率で変える。</div>
+      <div class="row" style="flex-wrap:wrap;gap:4px 14px"><label class="toggle"><input id="symProf" type="checkbox" checked>左右対称</label><label class="toggle" title="左右の点をいつも同じ高さにそろえる。外すと左右の点を別々の高さに動かせる"><input id="pairH" type="checkbox" checked>上下対称（左右の点を同じ高さに）</label><span class="note" style="margin-left:auto">正面（−Y）から見た輪郭</span></div>
+      <canvas class="profile" id="profile" tabindex="0" aria-label="横から見た輪郭。点をドラッグして形を変える"></canvas>
+      <div class="curvecap" style="justify-content:center">横から見た輪郭（縦横同じ縮尺・目盛り10mm）</div>
+      <div class="row"><label for="pz">選んだ点の高さ／軸からの距離</label><input id="pz" type="number" step="0.5" min="0" max="380" disabled aria-label="選んだ点の高さ"><input id="pd" type="number" step="0.5" min="10" max="280" disabled aria-label="選んだ点の軸からの距離"><span class="unit">mm</span></div>
+      <div class="row" style="flex-wrap:wrap"><button id="pDel" type="button" class="sm" disabled>選んだ点を消す</button><button id="pInit" type="button" class="sm">点の位置をリセット</button><button id="pReset" type="button" class="sm">まっすぐに戻す</button></div>
+      <div class="note">点をドラッグして輪郭を整える。左右の壁は別々の曲線で、点は上下にも左右にも動く（一番上の点を上下に動かすと器の高さが変わる）。空いている所をダブルクリックでその側に点を足し、点をダブルクリックで消す。選んだ点は矢印キーで1mmずつ（Shiftで5mm）動く。「左右対称」がONの間は右の壁が左にも写る（右の点だけを動かす）。OFFにすると左右を別々に動かせる。「上下対称」がONの間は左右の点がいつも同じ高さにそろい、片側の点を上下に動かすともう片側も一緒に動く（点の追加・削除も左右そろって）。OFFにすると左右の点を別々の高さに置ける。断面の中心の動きは点線。赤い所は壁の傾きが「オーバーハング警告」の角度を超えている。「点の位置をリセット」は最初の5点のなめらかな広がりに、「まっすぐに戻す」は下と上を直線で結んだ形に戻す（どちらも今の上下の大きさのまま）。一番下と一番上は、下の断面・上の断面の「大きさ」と連動する。</div>
+      <canvas class="curve" id="curveM" tabindex="0" aria-label="高さ方向の形の変化"></canvas>
+      <div class="curvecap"><span>底</span><span>形　0＝下の形／1＝上の形</span><span>口</span></div>
+      <div class="row"><label for="twist">ねじれ（全体）</label><input id="twist" type="range" min="-360" max="360" step="5" value="0"><span class="val" id="twistV">0</span><span class="unit">°</span></div>
+      <div class="row"><label for="corr">点の対応のとり方</label><select id="corr"><option value="auto">自動</option><option value="polar">中心からの角度</option><option value="arc">周の長さ</option></select></div>
+      <div class="note">2つの断面は、どちらも外接円の直径が「大きさ」になるように揃えてから混ぜる。「中心からの角度」は、中心から見て各方向の距離を混ぜるので、円→星・花びらのように放射状の形がきれいに変わる。中心から見て輪郭が重なる形（C字・L字など）は「周の長さ」で混ぜる（自動ではそう切り替わる）。カーブはダブルクリックで直線に戻る。</div>
+      <div class="note">SVGは閉じた形のうち一番大きいものを使う（大きさ・位置はSVG側に関係なく、ここの値で決まる）。文字はアウトライン化してから。</div>
+    </section>
+
+    <section>
+      <h2>層と底面</h2>
+      <div class="row"><label for="layerH">層高</label><input id="layerH" type="number" step="0.05" min="0.3" max="3" value="0.9"><span class="unit">mm</span></div>
+      <div class="row"><label for="segs">1周の点数</label><input id="segs" type="number" step="12" min="36" max="720" value="240"><span class="unit">点</span></div>
+      <div class="row"><label class="toggle"><input id="spiral" type="checkbox" checked>らせん（Vaseモード）</label></div>
+      <div class="row"><label for="bottomN">底面の充填層数</label><input id="bottomN" type="number" step="1" min="0" max="12" value="3"><span class="unit">層</span></div>
+      <div class="row"><label for="fillMode">底面の充填のしかた</label><select id="fillMode"><option value="auto">自動（形を見て選ぶ）</option><option value="concentric">同心らせん</option><option value="zigzag">外周＋往復</option></select></div>
+      <div class="row"><label for="fillPitch">充填の線間隔（線幅比）</label><input id="fillPitch" type="number" step="0.05" min="0.5" max="1.5" value="1.0"></div>
+      <div class="row"><label for="bottomShape">底面の外形</label><select id="bottomShape"><option value="wall">壁の1層目に合わせる</option><option value="stl">STLの輪郭のまま</option></select></div>
+      <div class="row"><label for="bottomExt">底面を外へ広げる</label><input id="bottomExt" type="number" step="1" min="0" max="4" value="0"><span class="unit">周</span></div>
+      <div class="row"><label for="modFree">壁の下は変調なし</label><input id="modFree" type="number" step="0.5" min="0" max="50" value="0"><span class="unit">mm</span></div>
+      <div class="row"><label for="joinMode">らせんへのつなぎ</label><select id="joinMode"><option value="ramp">傾斜の1周を足す</option><option value="fill">1周目を押出で埋める</option><option value="none">なし（v12まで）</option></select></div>
+      <div class="note">らせんの1周目は平らな底面（または台）の上で1周かけて層高ぶん浮いていく。「傾斜の1周」は底面の上に高さ0.2→1層ぶんの坂を1周足し、押出量も高さに合わせる。「押出で埋める」は1周目の押出量を1→2倍に増やしてすき間を埋める。</div>
+      <div class="note">「外へ広げる」は底面だけを線幅×周数ぶん輪郭の外に出す（壁の座り）。「変調なし」は壁の下端からその高さまで太さ・速度・XY・Zの変調を0にし、その上3mmでなめらかに立ち上げる。</div>
+    </section>
+
+    <section>
+      <h2><label class="toggle"><input id="onF" type="checkbox" checked>太さ　E（押出量）</label></h2>
+      <div class="row"><label for="wMode">太さの出し方</label><select id="wMode"><option value="e">速度一定・Eで太さ</option><option value="flow">流量一定・Fで太さ</option></select></div>
+      <div class="row"><label for="fMin">太さ倍率の可動域</label><input id="fMin" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">〜</span><input id="fMax" type="number" step="0.05" min="1" max="3" value="1.4"></div>
+      <canvas class="curve" id="curveF" tabindex="0" aria-label="高さ方向の太さ倍率カーブ"></canvas>
+      <div class="curvecap"><span>底</span><span>高さ方向の太さ倍率（ドラッグ）</span><span>口</span></div>
+      <div class="row"><label for="fAmp">周方向の揺れ</label><input id="fAmp" type="range" min="0" max="0.6" step="0.01" value="0"><span class="val" id="fAmpV">0.00</span></div>
+      <div class="row"><label for="fN">周方向の波数</label><input id="fN" type="range" min="0" max="24" step="1" value="6"><span class="val" id="fNV">6</span></div>
+      <div class="row"><label for="fTw">ねじれ</label><input id="fTw" type="range" min="-10" max="10" step="0.5" value="0"><span class="val" id="fTwV">0.0</span><span class="unit">°/mm</span></div>
+    </section>
+
+    <section>
+      <h2><label class="toggle"><input id="onV" type="checkbox" checked>速度　F（ノズルの速さ）</label></h2>
+      <div class="row keep"><label for="baseF">基準速度（外周）</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
+      <div class="row"><label for="vFirst">初層速度</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
+      <div class="row"><label for="vMin">速度倍率の可動域</label><input id="vMin" type="number" step="0.05" min="0.2" max="1" value="0.5"><span class="unit">〜</span><input id="vMax" type="number" step="0.05" min="1" max="3" value="1.5"></div>
+      <canvas class="curve" id="curveV" tabindex="0" aria-label="高さ方向の速度倍率カーブ"></canvas>
+      <div class="curvecap"><span>底</span><span>高さ方向の速度倍率（ドラッグ）</span><span>口</span></div>
+      <div class="row"><label for="vAmp">周方向の揺れ</label><input id="vAmp" type="range" min="0" max="0.6" step="0.01" value="0"><span class="val" id="vAmpV">0.00</span></div>
+      <div class="row"><label for="vN">周方向の波数</label><input id="vN" type="range" min="0" max="24" step="1" value="6"><span class="val" id="vNV">6</span></div>
+      <div class="row"><label for="vTw">ねじれ</label><input id="vTw" type="range" min="-10" max="10" step="0.5" value="0"><span class="val" id="vTwV">0.0</span><span class="unit">°/mm</span></div>
+      <div class="note">初層速度は1層目（底面の1層目、底面なしなら壁の1層目）とスカートに使う。壁の速度は「基準×高さカーブ×周方向の揺れ」。太さが「流量一定」のときは、さらに太さ倍率で割る。E/mmは速度に関係なく太さ倍率だけで決まるので、速度を上げるとスクリューも速く回る。</div>
+    </section>
+
+    <section>
+      <h2><label class="toggle"><input id="onXY" type="checkbox" checked>XY　輪郭のうねり</label></h2>
+      <div class="row"><label for="xyAmp">振幅</label><input id="xyAmp" type="range" min="0" max="4" step="0.05" value="0"><span class="val" id="xyAmpV">0.00</span><span class="unit">mm</span></div>
+      <div class="row"><label for="xyN">周方向の波数</label><input id="xyN" type="range" min="0" max="36" step="1" value="8"><span class="val" id="xyNV">8</span></div>
+      <div class="row"><label for="xyTw">ねじれ</label><input id="xyTw" type="range" min="-15" max="15" step="0.5" value="0"><span class="val" id="xyTwV">0.0</span><span class="unit">°/mm</span></div>
+      <div class="row"><label for="xyWave">波形</label><select id="xyWave"><option value="sin">正弦</option><option value="tri">三角</option><option value="sq">なめらか矩形</option><option value="noise">ノイズ</option></select></div>
+      <canvas class="curve" id="curveXY" tabindex="0" aria-label="高さ方向のXY振幅エンベロープ"></canvas>
+      <div class="curvecap"><span>底</span><span>高さ方向の強さ 0〜1</span><span>口</span></div>
+      <div class="row"><label for="xyMax">上限（ガード）</label><input id="xyMax" type="number" step="0.1" min="0" max="10" value="2"><span class="unit">mm</span></div>
+    </section>
+
+    <section>
+      <h2><label class="toggle"><input id="onZ" type="checkbox" checked>Z　層の波打ち</label></h2>
+      <div class="row"><label for="zAmp">振幅</label><input id="zAmp" type="range" min="0" max="0.6" step="0.01" value="0"><span class="val" id="zAmpV">0.00</span><span class="unit">mm</span></div>
+      <div class="row"><label for="zN">周方向の波数</label><input id="zN" type="range" min="0" max="36" step="1" value="4"><span class="val" id="zNV">4</span></div>
+      <div class="row"><label for="zTw">ねじれ</label><input id="zTw" type="range" min="-15" max="15" step="0.5" value="0"><span class="val" id="zTwV">0.0</span><span class="unit">°/mm</span></div>
+      <div class="row"><label for="zWave">波形</label><select id="zWave"><option value="sin">正弦</option><option value="tri">三角</option><option value="sq">なめらか矩形</option><option value="noise">ノイズ</option></select></div>
+      <canvas class="curve" id="curveZ" tabindex="0" aria-label="高さ方向のZ振幅エンベロープ"></canvas>
+      <div class="curvecap"><span>底</span><span>高さ方向の強さ 0〜1</span><span>口</span></div>
+      <div class="note">ガード：|ΔZ| は層高の45%まで。超えた分は切り詰める</div>
+    </section>
+
+    <section>
+      <h2>ガード</h2>
+      <div class="row"><label for="ovh">オーバーハング警告</label><input id="ovh" type="number" step="1" min="5" max="80" value="30"><span class="unit">°</span></div>
+      <div class="row"><label for="seed">ノイズの種</label><input id="seed" type="number" step="1" min="0" max="9999" value="7"></div>
+      <div class="row"><button id="btnReset" type="button" class="sm">変調をすべて戻す</button></div>
+    </section>
+
+  </div>
+
+  <!-- ========== CENTER: 3D ========== -->
+  <div class="panel view" id="view">
+    <canvas id="gl"></canvas>
+    <div class="hud" id="hud">—</div>
+    <div class="viewbtns">
+      <button class="sm" id="btnFit" type="button">全体</button>
+      <button class="sm" id="btnTop" type="button">真上</button>
+      <button class="sm" id="btnSide" type="button">真横</button>
+      <button class="sm" id="btnInfo" type="button" aria-expanded="true" aria-controls="info">推定・判定</button>
+    </div>
+    <div class="info" id="info">
+      <section>
+        <div class="big" id="timeBig">—<small> 出力時間</small></div>
+        <dl class="stats">
+          <dt>層数</dt><dd id="sLayers">—</dd>
+          <dt>点数</dt><dd id="sPts">—</dd>
+          <dt>経路長</dt><dd id="sLen">—</dd>
+          <dt>速度の範囲</dt><dd id="sF">—</dd>
+          <dt>線幅の範囲（目安）</dt><dd id="sW">—</dd>
+          <dt>押出レート（基準比）</dt><dd id="sR">—</dd>
+          <dt>高さ</dt><dd id="sH">—</dd>
+        </dl>
+        <details><summary>数値の読み方</summary><div class="note">線幅は「設定線幅×太さ倍率」。「速度一定」ではE/mmを倍率で増減、「流量一定」ではスクリュー回転を一定に保ちFを倍率で割る。押出レートは「速度×E/mm」を基準（基準速度・倍率1）と比べた値で、スクリューの回転の速さにあたる。実際の幅は土と圧で変わる。</div></details>
+      </section>
+      <section>
+        <h2>判定</h2>
+        <div class="warns" id="warns"></div>
+      </section>
+    </div>
+
+    <div class="playbar">
+      <button class="sm" id="btnPlay" type="button" aria-label="再生">▶ 再生</button>
+      <select id="playSpd" aria-label="再生速度"><option value="1">1×</option><option value="5">5×</option><option value="20" selected>20×</option><option value="60">60×</option><option value="200">200×</option></select>
+      <input type="range" id="scrub" min="0" max="1000" value="1000" aria-label="進行位置">
+      <span class="t" id="playT">—</span>
+    </div>
+    <div class="export" id="export">
+      <div class="exphead">G-code</div>
+      <div class="exp">
+        <input type="text" id="fname" value="claypath_40x100" aria-label="ファイル名">
+        <button class="primary" id="btnSave" type="button">保存</button>
+        <button id="btnCopy" type="button">コピー</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <details>
+        <summary>押出・開始/終了コードの設定</summary>
+        <div class="note" style="margin:4px 0 6px">Eは「線幅×層高×倍率÷フィラメント断面」で各点ごとに書き出す（スクリュー押出前提）。XYは「ベッド中心」を足して書き出す（Cura出力と同じ座標系）。保存名が .txt になった場合は .gcode に直してSDへ。</div>
+        <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
+        <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
+        <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
+        <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
+        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（オフセット6mm）</label></div>
+        <div class="note" style="margin-top:6px">開始コード（成功実績のある Cura 5.12 プロファイル「3040_case1」から転記）</div>
+        <textarea id="gStart" rows="8">G90 ;absolute positioning
+G92 Z0 ;current needle height is Z zero
+G21 ;metric values
+M82 ;absolute extrusion
+M107 ;fan off
+G28 X0 Y0 ;home X and Y only. never home Z
+G92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print
+G1 Z15.0 F2400 ;lower the platform
+G92 E0 ;reset extruder
+G1 F200 E3 ;prime 3mm
+M117 Printing...
+M106 S255 ;fan full
+G92 E0
+G1 F1800 E-1 ;retract</textarea>
+        <div class="note" style="margin-top:6px">終了コード</div>
+        <textarea id="gEnd" rows="6">M107
+G91 ;relative
+G1 E-1 F300
+G1 Z+20
+G90 ;back to absolute
+G28 X0 Y0
+M106 S0 ;fan off
+M84 ;disable motors
+M82 ;absolute extrusion mode</textarea>
+      </details>
+
+    </div>
+    <div class="legend"><select id="colorBy" aria-label="色の意味"><option value="w">色：太さ</option><option value="v">色：速度</option></select><span id="legLo">太い</span><span class="bar"></span><span id="legHi">細い</span><span class="bad"></span><span>警告</span></div>
+  </div>
+
+</div>
+</div>
+
+<script>window.ClayNavFiles=['claypath-lab.html','clayline-lab.html','claymorph-lab.html'];</script>
+<script>/* ---- inlined from shared/nav.js ---- */
+/* ClayPath Lab / ClayLine Lab / ClayMorph Lab — tabs to move between the three tools
+ * Replaces the header links with one tab bar (the current tool highlighted). Query and hash (e.g. ?teacher) carry over.
+ * Moving to another tab loads that page: the tool you leave keeps nothing, so save G-code / settings first.
+ */
+(function(){
+"use strict";
+const TOOLS=[
+  {name:'ClayPath Lab', sub:'STLから', dir:''},
+  {name:'ClayLine Lab', sub:'SVGの線から', dir:'svg/'},
+  {name:'ClayMorph Lab', sub:'断面の変化から', dir:'morph/'},
+];
+const me=document.currentScript; const root=(me&&me.src||'').replace(/shared\/nav\.js(\?.*)?$/,'');
+function build(){ const hd=document.querySelector('header'); if(!hd) return;
+  hd.querySelectorAll('a.xlink').forEach(a=>a.remove());
+  const here=location.href.split(/[?#]/)[0].replace(/index\.html$/,'');
+  const st=document.createElement('style'); st.textContent=`
+.tooltabs{display:flex;gap:2px;margin-left:auto;align-self:center;background:var(--line);padding:2px;border-radius:7px}
+.tooltabs a{display:flex;flex-direction:column;align-items:center;padding:3px 12px;border-radius:5px;color:var(--fg2);text-decoration:none;font-size:12px;line-height:1.25;white-space:nowrap}
+.tooltabs a small{font-size:10px}
+.tooltabs a:hover{color:var(--fg);background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.tooltabs a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+@media (max-width:760px){ .tooltabs{margin-left:0;width:100%} .tooltabs a{flex:1;padding:3px 4px} }`; document.head.appendChild(st);
+  const nav=document.createElement('nav'); nav.className='tooltabs'; nav.setAttribute('aria-label','ツールの切り替え');
+  // single-file builds (standalone/) set window.ClayNavFiles to their sibling file names
+  const files=window.ClayNavFiles; const page=location.pathname.split('/').pop();
+  TOOLS.forEach((t,i)=>{ const a=document.createElement('a');
+    if(files){ a.href=files[i]+location.search+location.hash; if(page===files[i]) a.setAttribute('aria-current','page'); }
+    else { const url=root+t.dir; a.href=url+(location.protocol==='file:'?'index.html':'')+location.search+location.hash; if(here===url) a.setAttribute('aria-current','page'); } // file:// does not serve a folder's index.html
+    a.innerHTML=`${t.name}<small>${t.sub}</small>`; nav.appendChild(a); });
+  // header: title and description first, tabs to the right
+  const h1=hd.querySelector('h1'), sub=hd.querySelector('.sub'); (sub||h1).after(nav); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
+})();
+</script>
+<script>/* ---- inlined from shared/printer.js ---- */
+/* ClayPath Lab / ClayLine Lab / ClayMorph Lab — shared machine profile
+ *
+ * The values every tool uses for the printer live here, in one place. Each page loads this file before its own script
+ * and calls ClayPrinter.apply(): the machine inputs get these values and are locked for students. Opening a page with
+ * ?teacher (e.g. .../morph/?teacher) unlocks them for that tab only, for test prints; reloading brings these values back.
+ * To change what students print with, edit this file and push.
+ *
+ * Machine: SYNO-SOURCE-3040 (air tank + screw extruder), Kobe Design University. Values confirmed on the machine.
+ */
+(function(){
+"use strict";
+const PROFILE={
+  name:'SYNO-SOURCE-3040・ノズル1.5mm・標準',
+  short:'3040・1.5mm',   // shown in the header chip
+  nozzle:1.5,        // mm. 2.0 mm also exists but uses much more clay; the course uses 1.5 only
+  lineW:1.5,         // mm, line width used for the E calculation
+  layerH:0.9,        // mm
+  filD:2.2,          // mm, "filament" diameter used to convert volume to E (screw extruder)
+  eMul:0.85,         // extrusion multiplier (Cura flow)
+  baseF:18,          // mm/s, base wall speed (try up to ~30 later)
+  vFirst:18,         // mm/s, first layer and skirt
+  travelF:60,        // mm/s, travel moves
+  zF:40,             // mm/s, Z moves (F2400)
+  retract:1,         // mm of E pulled back before a travel
+  retractF:30,       // mm/s for retract / unretract (F1800)
+  hop:1,             // mm, Z lift for travel moves
+  skirt:true,        // one skirt loop
+  skirtOff:6,        // mm, skirt offset from the part
+  bedX:150, bedY:150,// mm, added to every XY (same frame as the Cura output); the start code's G92 X-15 Y-30 also applies
+  build:{x:300,y:300,z:400}, // mm
+  gStart:"G90 ;absolute positioning\nG92 Z0 ;current needle height is Z zero\nG21 ;metric values\nM82 ;absolute extrusion\nM107 ;fan off\nG28 X0 Y0 ;home X and Y only. never home Z\nG92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print\nG1 Z15.0 F2400 ;lower the platform\nG92 E0 ;reset extruder\nG1 F200 E3 ;prime 3mm\nM117 Printing...\nM106 S255 ;fan full\nG92 E0\nG1 F1800 E-1 ;retract",
+  gEnd:"M107\nG91 ;relative\nG1 E-1 F300\nG1 Z+20\nG90 ;back to absolute\nG28 X0 Y0\nM106 S0 ;fan off\nM84 ;disable motors\nM82 ;absolute extrusion mode",
+  notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、アクリル＋マスキングテープ／9mm MDF）'
+};
+// inputs that belong to the machine (only those a page has are touched)
+const LOCK=['lineW','layerH','filD','eMul','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
+const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
+function setValues(){ const $=id=>document.getElementById(id);
+  for(const id of LOCK){ const el=$(id); if(!el||!(id in PROFILE)) continue;
+    if(el.type==='checkbox') el.checked=!!PROFILE[id]; else el.value=PROFILE[id];
+    if(!teacher){ el.disabled=true; el.title='機械の設定（変更は教員のみ）'; el.classList.add('locked'); } } }
+let applied=false;
+function apply(){ setValues(); if(applied) return; applied=true;
+  const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}'; document.head.appendChild(st);
+  const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
+    b.textContent= teacher? `教員モード：機械の設定を変更できます（このタブだけ。再読み込みで ${PROFILE.name} に戻る）` : `🔒 ${PROFILE.short}`; b.title= teacher? '' : '機械の設定は教員だけが変更できます'; if(teacher) hd.appendChild(b); else { const sub=hd.querySelector('.sub'); (sub||hd.lastChild).after(b); } } }
+// after loading a settings file: put the machine values back unless a teacher is testing
+function reapply(){ if(!teacher) setValues(); }
+window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
+})();
+</script>
+<script>/* ---- inlined from shared/fill.js ---- */
+/* ClayPath Lab / ClayMorph Lab — shared bottom fill
+ *
+ * Fills the bottom layers of a vase-mode part from its per-layer contours (each {pts:Float32Array(N*2), cx, cy}, CCW,
+ * index-aligned). Concentric spiral rings when they can reach the centre; otherwise (necks, notches) one outline ring plus
+ * back-and-forth lines turned 90 degrees per layer. The last bottom layer always ends on the outline at index 0, where
+ * the wall spiral starts.
+ */
+window.ClayFill=(function(){
+"use strict";
+function inPoly(p,pts){ let c=false; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ const a=pts[i],b=pts[j]; if(((a[1]>p[1])!==(b[1]>p[1])) && p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+// parallel lines at "pitch" spacing clipped to the polygon (even-odd), trimmed by "inset" at both ends
+function hatchSegs(poly,ang,pitch,inset){ const c=Math.cos(ang), s=Math.sin(ang); const R=poly.map(p=>[p[0]*c+p[1]*s, -p[0]*s+p[1]*c]); let y0=1e9,y1=-1e9; for(const p of R){ y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
+  const segs=[]; const n=R.length;
+  for(let y=y0+inset*0.75; y<=y1-inset*0.75+1e-9; y+=pitch){ const xs=[]; for(let k=0;k<n;k++){ const a=R[k],b=R[(k+1)%n]; if((a[1]<=y)!==(b[1]<=y)) xs.push(a[0]+(y-a[1])/(b[1]-a[1])*(b[0]-a[0])); } xs.sort((u,v)=>u-v);
+    for(let k=0;k+1<xs.length;k+=2){ const xa=xs[k]+inset, xb=xs[k+1]-inset; if(xb-xa>0.5) segs.push([[xa,y],[xb,y]].map(p=>[p[0]*c-p[1]*s, p[0]*s+p[1]*c])); } }
+  return segs; }
+// o: {contours, N, nB, lh, H, spiral, pitch, ext, bottomShape:'wall'|'stl', fillMode:'auto'|'concentric'|'zigzag', wallDxy(theta,z), pts}
+// pushes points into o.pts and returns what the stats need
+function bottom(o){ const {contours,N,nB,lh,H,spiral,pitch,wallDxy,pts}=o; o.fillMode=o.fillMode||'auto'; const d2r0=Math.PI/180;
+  let lastC=null, fillRings=0, fillConcave=0, fillZig=0, fillTravel=0, bottomWaveMax=0;
+  for(let k=0;k<nB;k++){ const c=contours[k]||lastC; if(!c) continue; lastC=c; const z=(k+1)*lh;
+    // inward vertex normals (miter-limited)
+    const nxs=new Float32Array(N), nys=new Float32Array(N);
+    for(let i=0;i<N;i++){ const a=(i+N-1)%N, b=(i+1)%N; let e1x=c.pts[i*2]-c.pts[a*2], e1y=c.pts[i*2+1]-c.pts[a*2+1]; let e2x=c.pts[b*2]-c.pts[i*2], e2y=c.pts[b*2+1]-c.pts[i*2+1];
+      const l1=Math.hypot(e1x,e1y)||1, l2=Math.hypot(e2x,e2y)||1; e1x/=l1;e1y/=l1;e2x/=l2;e2y/=l2; // CCW: inward normal = (-ty, tx)
+      let nx=(-e1y-e2y)/2, ny=(e1x+e2x)/2; const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl; const cosh=Math.max(0.5,(-e1y*nx+e1x*ny)); nxs[i]=nx/cosh; nys[i]=ny/cosh;
+      if((e1x*e2y-e1y*e2x)<-1e-3) fillConcave++; }
+    // how deep can we go: ring stays valid while every edge keeps its direction and area stays positive
+    const ringOK=d=>{ let area=0; for(let i=0;i<N;i++){ const b=(i+1)%N; const x1=c.pts[i*2]+nxs[i]*d, y1=c.pts[i*2+1]+nys[i]*d, x2=c.pts[b*2]+nxs[b]*d, y2=c.pts[b*2+1]+nys[b]*d; area+=x1*y2-x2*y1;
+        const ox=c.pts[b*2]-c.pts[i*2], oy=c.pts[b*2+1]-c.pts[i*2+1]; if((x2-x1)*ox+(y2-y1)*oy<0) return false; } return area>pitch*pitch; };
+    let R=0; while(R<400 && ringOK((R+1)*pitch)) R++; fillRings=Math.max(fillRings,R); const ext=o.ext;
+    const outward = ((nB-1-k)%2)===0; // last bottom layer ends at the outer ring where the wall starts
+    // innermost ring -> its centroid, so the final turn closes the centre
+    // wavy outline: the outer ring follows the wall's first layer, inner rings fade back to the STL shape
+    const wv=new Float32Array(N), rnx=new Float32Array(N), rny=new Float32Array(N); let wmax=0;
+    for(let i=0;i<N;i++){ const x0=c.pts[i*2]-c.cx, y0=c.pts[i*2+1]-c.cy; const r0=Math.hypot(x0,y0)||1; rnx[i]=x0/r0; rny[i]=y0/r0;
+      if(o.bottomShape==='wall'){ const zw=(nB+1)*lh+(spiral?(i/N)*lh:0); wv[i]=wallDxy(Math.atan2(y0,x0),zw); wmax=Math.max(wmax,Math.abs(wv[i])); } }
+    bottomWaveMax=Math.max(bottomWaveMax,wmax); const fd=Math.max(2*pitch,4*wmax+pitch); // fade distance
+    const fadeAt=d=> d<=0?1:Math.max(0,1-d/fd);
+    // concentric rings stop where the offset would fold over (necks, notches). If a sizeable area is left inside, the single
+    // "turn to the centre" cannot fill it, so fall back to an outline plus back-and-forth fill.
+    let innerA=0; { const d=R*pitch; for(let i=0;i<N;i++){ const b=(i+1)%N; innerA+=(c.pts[i*2]+nxs[i]*d)*(c.pts[b*2+1]+nys[b]*d)-(c.pts[b*2]+nxs[b]*d)*(c.pts[i*2+1]+nys[i]*d); } innerA=Math.abs(innerA)/2; }
+    const useZig = o.fillMode==='zigzag' || (o.fillMode==='auto' && innerA>Math.PI*(1.5*pitch)**2);
+    if(useZig){ fillZig++;
+      const ring=[]; for(let e=ext;e>=0;e--){ const d=-e*pitch; for(let i=(e<ext?1:0);i<=N;i++){ const ii=i%N; ring.push([c.pts[ii*2]+nxs[ii]*d+rnx[ii]*wv[ii], c.pts[ii*2+1]+nys[ii]*d+rny[ii]*wv[ii]]); } }
+      const poly=[]; for(let i=0;i<N;i++) poly.push([c.pts[i*2]+rnx[i]*wv[i], c.pts[i*2+1]+rny[i]*wv[i]]);
+      const segs=hatchSegs(poly,(45+90*(k%2))*d2r0,pitch,pitch*0.9);
+      const push=(q,travel)=>{ const dx=q[0]-c.cx,dy=q[1]-c.cy; const dd=Math.hypot(dx,dy)||1; if(travel&&pts.length) fillTravel++; pts.push({x:q[0],y:q[1],z,theta:Math.atan2(dy,dx),h:z/H,nx:dx/dd,ny:dy/dd,layer:k,bottom:true,bm:1,travel:travel&&pts.length>0}); };
+      const emitHatch=(start,firstTravel)=>{ let cur=start, first=true; const rem=segs.slice();
+        while(rem.length){ let bi=0,rev=false,bd=1e18; for(let j=0;j<rem.length;j++){ const g=rem[j]; const d0=Math.hypot(g[0][0]-cur[0],g[0][1]-cur[1]), d1=Math.hypot(g[1][0]-cur[0],g[1][1]-cur[1]); if(d0<bd){bd=d0;bi=j;rev=false;} if(d1<bd){bd=d1;bi=j;rev=true;} }
+          const g=rem.splice(bi,1)[0]; const a=rev?g[1]:g[0], b=rev?g[0]:g[1];
+          // short hop between neighbouring lines stays inside: extrude it (zigzag) instead of lifting
+          const mid=[(cur[0]+a[0])/2,(cur[1]+a[1])/2]; const hop= bd<2.5*pitch && inPoly(mid,poly);
+          push(a, first? firstTravel : !hop); const sl=Math.hypot(b[0]-a[0],b[1]-a[1]), ns=Math.max(1,Math.ceil(sl/2)); for(let u=1;u<=ns;u++) push([a[0]+(b[0]-a[0])*u/ns, a[1]+(b[1]-a[1])*u/ns],false); cur=b; first=false; }
+        return cur; };
+      const last=k===nB-1;
+      if(last){ // fill first, then the outline, ending at the seam where the wall starts
+        emitHatch(pts.length? [pts[pts.length-1].x,pts[pts.length-1].y] : ring[0], true);
+        ring.forEach((q,j)=>push(q, j===0)); }
+      else { ring.forEach((q,j)=>push(q, j===0)); emitHatch(ring[ring.length-1], false); }
+      continue; }
+    const dR=R*pitch; let lcx=0,lcy=0; for(let i=0;i<N;i++){ lcx+=c.pts[i*2]+nxs[i]*dR; lcy+=c.pts[i*2+1]+nys[i]*dR; } lcx/=N; lcy/=N;
+    // the first turn runs as a closed ring at the outer offset (no radial step at the seam), then spirals inward
+    const ringEnd=(R+ext+1)*N, total=ringEnd+N; for(let s=0;s<=total;s++){ const ss=outward? total-s : s; const i=ss%N; let x,y;
+      let bm=1;
+      if(ss<=ringEnd){ const d=pitch*Math.max(0,ss-N)/N-ext*pitch; const f=fadeAt(d); x=c.pts[i*2]+nxs[i]*d+rnx[i]*wv[i]*f; y=c.pts[i*2+1]+nys[i]*d+rny[i]*wv[i]*f;
+        // ring spacing grows at peaks / shrinks in valleys while the wave fades: match extrusion to the local spacing
+        if(d>0&&d<fd) bm=Math.min(1.3,Math.max(0.7,1+wv[i]/fd)); }
+      else { const u=(ss-ringEnd)/N; const rx=c.pts[i*2]+nxs[i]*dR, ry=c.pts[i*2+1]+nys[i]*dR; x=rx+(lcx-rx)*u; y=ry+(lcy-ry)*u; }
+      const dx=x-c.cx,dy=y-c.cy; const dd=Math.hypot(dx,dy)||1;
+      pts.push({x,y,z,theta:Math.atan2(dy,dx),h:z/H,nx:dx/dd,ny:dy/dd,layer:k,bottom:true,bm,travel:s===0&&pts.length>0}); } }
+  return {lastC,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax}; }
+return {bottom, hatchSegs, inPoly};
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+// machine profile (shared/printer.js): fills and locks the machine inputs; falls back to the page's own values if the file is missing
+const MP=Object.assign({zF:40,retract:1,retractF:30,hop:1,skirtOff:6},(window.ClayPrinter&&ClayPrinter.PROFILE)||{}); if(window.ClayPrinter) ClayPrinter.apply();
+const $ = id => document.getElementById(id);
+
+/* ---------- STL ---------- */
+function parseSTL(buf){
+  const u8 = new Uint8Array(buf);
+  const head = new TextDecoder().decode(u8.subarray(0, Math.min(400,u8.length)));
+  const isAscii = /^\s*solid/.test(head) && /facet/.test(head) && !(u8.length>=84 && (84 + new DataView(buf).getUint32(80,true)*50) === u8.length);
+  if(isAscii){
+    const txt = new TextDecoder().decode(u8);
+    const out=[]; const re=/vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g; let m;
+    while((m=re.exec(txt))) out.push(+m[1],+m[2],+m[3]);
+    return new Float32Array(out);
+  }
+  const dv=new DataView(buf); const n=dv.getUint32(80,true); const out=new Float32Array(n*9);
+  let o=84; for(let i=0;i<n;i++){ o+=12; for(let k=0;k<9;k++){ out[i*9+k]=dv.getFloat32(o,true); o+=4; } o+=2; }
+  return out;
+}
+function bounds(v){ const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9]; for(let i=0;i<v.length;i+=3){ for(let k=0;k<3;k++){ if(v[i+k]<mn[k])mn[k]=v[i+k]; if(v[i+k]>mx[k])mx[k]=v[i+k]; } } return {mn,mx}; }
+
+/* slice one plane -> largest closed loop (array of [x,y]) */
+function sliceLoop(tri, z){
+  const segs=[]; const n=tri.length/9;
+  for(let t=0;t<n;t++){
+    const p=[[tri[t*9],tri[t*9+1],tri[t*9+2]],[tri[t*9+3],tri[t*9+4],tri[t*9+5]],[tri[t*9+6],tri[t*9+7],tri[t*9+8]]];
+    const pts=[];
+    for(let e=0;e<3;e++){ const a=p[e],b=p[(e+1)%3];
+      if((a[2]<z)!==(b[2]<z)){ const s=(z-a[2])/(b[2]-a[2]); pts.push([a[0]+s*(b[0]-a[0]), a[1]+s*(b[1]-a[1])]); } }
+    if(pts.length===2) segs.push(pts);
+  }
+  if(!segs.length) return null;
+  const key=p=>(Math.round(p[0]*500)+","+Math.round(p[1]*500));
+  const adj=new Map(); const addA=(k,i)=>{ if(!adj.has(k)) adj.set(k,[]); adj.get(k).push(i); };
+  segs.forEach((s,i)=>{ addA(key(s[0]),i); addA(key(s[1]),i); });
+  const used=new Uint8Array(segs.length); const loops=[];
+  for(let i=0;i<segs.length;i++){ if(used[i]) continue;
+    const loop=[segs[i][0]]; let cur=segs[i][1]; used[i]=1; let guard=0;
+    while(guard++<segs.length+2){ loop.push(cur); const ks=adj.get(key(cur))||[]; let nx=-1;
+      for(const j of ks){ if(!used[j]){ nx=j; break; } } if(nx<0) break; used[nx]=1;
+      cur = key(segs[nx][0])===key(cur) ? segs[nx][1] : segs[nx][0]; }
+    if(loop.length>=3) loops.push(loop);
+  }
+  let best=null,bestA=0;
+  for(const L of loops){ let a=0; for(let i=0;i<L.length;i++){ const p=L[i],q=L[(i+1)%L.length]; a+=p[0]*q[1]-q[0]*p[1]; } if(Math.abs(a)>bestA){ bestA=Math.abs(a); best=a>0?L:L.slice().reverse(); } }
+  return {loop:best, count:loops.length};
+}
+/* resample closed loop to N pts, starting near angle 0 from centroid */
+function resample(loop,N){
+  let cx=0,cy=0; for(const p of loop){cx+=p[0];cy+=p[1];} cx/=loop.length; cy/=loop.length;
+  // start exactly where the (CCW) loop crosses angle 0 from the centroid, so layers stay index-aligned
+  const ang=loop.map(p=>Math.atan2(p[1]-cy,p[0]-cx)); let si=-1,start=null;
+  for(let i=0;i<loop.length;i++){ const a=ang[i],b=ang[(i+1)%loop.length]; if(a<=0&&b>0&&Math.abs(a)<1.6&&Math.abs(b)<1.6){ const s=-a/(b-a); const p=loop[i],q=loop[(i+1)%loop.length]; start=[p[0]+s*(q[0]-p[0]),p[1]+s*(q[1]-p[1])]; si=i; break; } }
+  if(si<0){ let sa=1e9; for(let i=0;i<loop.length;i++){ if(Math.abs(ang[i])<sa){sa=Math.abs(ang[i]);si=i;} } start=loop[si]; si=si-1; }
+  const L=[start].concat(loop.slice(si+1),loop.slice(0,si+1));
+  const cum=[0]; for(let i=0;i<L.length;i++){ const p=L[i],q=L[(i+1)%L.length]; cum.push(cum[i]+Math.hypot(q[0]-p[0],q[1]-p[1])); }
+  const tot=cum[L.length]; const out=new Float32Array(N*2); let j=0;
+  for(let k=0;k<N;k++){ const d=tot*k/N; while(j<L.length-1 && cum[j+1]<d) j++; const p=L[j],q=L[(j+1)%L.length]; const seg=cum[j+1]-cum[j]; const s=seg>1e-9?(d-cum[j])/seg:0;
+    out[k*2]=p[0]+s*(q[0]-p[0]); out[k*2+1]=p[1]+s*(q[1]-p[1]); }
+  return {pts:out,cx,cy};
+}
+
+/* ---------- curve editor (5 handles, Catmull-Rom) ---------- */
+class Curve{
+  constructor(cv,min,max,init,onChange){ this.cv=cv; this.min=min; this.max=max; this.y=init.slice(); this.onChange=onChange; this.drag=-1;
+    const px=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; };
+    cv.addEventListener('pointerdown',e=>{ const [x]=px(e); this.drag=Math.round(x*4); cv.setPointerCapture(e.pointerId); this.move(e,px); });
+    cv.addEventListener('pointermove',e=>{ if(this.drag>=0) this.move(e,px); });
+    const up=()=>{ this.drag=-1; }; cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+    cv.addEventListener('dblclick',()=>{ this.y=init.slice(); this.draw(); this.onChange(); });
+    this.draw(); }
+  move(e,px){ const [,y]=px(e); const v=this.max-(Math.min(1,Math.max(0,y)))*(this.max-this.min); this.y[Math.max(0,Math.min(4,this.drag))]=v; this.draw(); this.onChange(); }
+  set(arr){ this.y=arr.slice(); this.draw(); }
+  eval(t){ t=Math.min(1,Math.max(0,t)); const s=t*4, i=Math.min(3,Math.floor(s)), u=s-i; const y=this.y; const g=k=>y[Math.max(0,Math.min(4,k))];
+    const p0=g(i-1),p1=g(i),p2=g(i+1),p3=g(i+2);
+    const v=0.5*((2*p1)+(-p0+p2)*u+(2*p0-5*p1+4*p2-p3)*u*u+(-p0+3*p1-3*p2+p3)*u*u*u);
+    return Math.min(this.max,Math.max(this.min,v)); }
+  draw(){ const cv=this.cv; const dpr=window.devicePixelRatio||1; const W=cv.clientWidth||260,H=cv.clientHeight||84; cv.width=W*dpr; cv.height=H*dpr; const c=cv.getContext('2d'); c.scale(dpr,dpr);
+    const cs=getComputedStyle(document.documentElement); const line=cs.getPropertyValue('--line').trim(), acc=cs.getPropertyValue('--accent').trim(), fg2=cs.getPropertyValue('--fg2').trim();
+    c.clearRect(0,0,W,H); c.strokeStyle=line; c.lineWidth=1;
+    for(let i=0;i<=4;i++){ c.beginPath(); c.moveTo(W*i/4,0); c.lineTo(W*i/4,H); c.stroke(); }
+    const yy=v=>H-(v-this.min)/(this.max-this.min)*H;
+    if(this.min<1&&this.max>1){ c.setLineDash([3,3]); c.strokeStyle=fg2; c.beginPath(); c.moveTo(0,yy(1)); c.lineTo(W,yy(1)); c.stroke(); c.setLineDash([]); }
+    c.strokeStyle=acc; c.lineWidth=2; c.beginPath(); for(let x=0;x<=W;x+=2){ const v=this.eval(x/W); x===0?c.moveTo(x,yy(v)):c.lineTo(x,yy(v)); } c.stroke();
+    c.fillStyle=acc; for(let i=0;i<=4;i++){ c.beginPath(); c.arc(W*i/4,yy(this.y[i]),4,0,6.283); c.fill(); } }
+}
+
+/* ---------- waveforms / noise ---------- */
+function hash(x,y,s){ let h=(x*374761393+y*668265263+s*1274126177)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967296; }
+function vnoise(u,v,s){ const x0=Math.floor(u),y0=Math.floor(v),fx=u-x0,fy=v-y0; const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+  const a=hash(x0,y0,s),b=hash(x0+1,y0,s),c=hash(x0,y0+1,s),d=hash(x0+1,y0+1,s); return ((a+(b-a)*sx)+((c+(d-c)*sx)-(a+(b-a)*sx))*sy)*2-1; }
+function wave(kind,ph,theta,h,n,seed){ // ph = n*theta + twist ; returns -1..1
+  switch(kind){ case 'tri': { const t=((ph/(2*Math.PI))%1+1)%1; return 4*Math.abs(t-0.5)-1; }
+    case 'sq': return Math.tanh(3*Math.sin(ph));
+    case 'noise': return vnoise(Math.max(1,n)*theta/(2*Math.PI)+100, h*Math.max(1,n)*0.5, seed);
+    default: return Math.sin(ph); } }
+
+/* ---------- state ---------- */
+let tris=null, bb=null, contours=null, path=null; // path: {x,y,z,f,w,bad,...}
+const P = {};
+const ids=['fillMode','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','onZ','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','zAmp','zN','zTw','zWave','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
+function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
+const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
+const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
+const cXY=new Curve($('curveXY'),0,1,[1,1,1,1,1],()=>recompute());
+const cZ=new Curve($('curveZ'),0,1,[1,1,1,1,1],()=>recompute());
+const cM=new Curve($('curveM'),0,1,[0,0.25,0.5,0.75,1],()=>reslice());
+
+/* ---------- slicing ---------- */
+let sliceTimer=null;
+/* ---------- morph: two cross-sections -> per-layer contours ---------- */
+const MORPH_RES=720; // vertices of a generated preset outline
+const svgShapes={b:null,t:null}; let svgSeq=0; // {loop:[[x,y],...], name}
+function polyArea(L){ let a=0; for(let i=0;i<L.length;i++){ const p=L[i],q=L[(i+1)%L.length]; a+=p[0]*q[1]-q[0]*p[1]; } return a/2; }
+function polyCentroid(L){ let a=0,cx=0,cy=0; for(let i=0;i<L.length;i++){ const p=L[i],q=L[(i+1)%L.length]; const c=p[0]*q[1]-q[0]*p[1]; a+=c; cx+=(p[0]+q[0])*c; cy+=(p[1]+q[1])*c; } if(Math.abs(a)<1e-12){ let sx=0,sy=0; for(const p of L){sx+=p[0];sy+=p[1];} return [sx/L.length,sy/L.length]; } return [cx/(3*a),cy/(3*a)]; }
+function chaikin(L,it){ let P2=L; for(let k=0;k<it;k++){ const o=[]; for(let i=0;i<P2.length;i++){ const p=P2[i],q=P2[(i+1)%P2.length]; o.push([0.75*p[0]+0.25*q[0],0.75*p[1]+0.25*q[1]],[0.25*p[0]+0.75*q[0],0.25*p[1]+0.75*q[1]]); } P2=o; } return P2; }
+// outline of a preset, CCW, roughly unit size (normalised later)
+function presetLoop(kind,n,a,round){ const L=[]; n=Math.max(3,Math.round(n));
+  if(kind==='circle'){ for(let k=0;k<MORPH_RES;k++){ const t=2*Math.PI*k/MORPH_RES; L.push([Math.cos(t),Math.sin(t)]); } return L; }
+  if(kind==='ellipse'){ const r=Math.max(0.2,a); for(let k=0;k<MORPH_RES;k++){ const t=2*Math.PI*k/MORPH_RES; L.push([Math.cos(t),r*Math.sin(t)]); } return L; }
+  if(kind==='petal'){ // lobes of radius 1, notches of radius 1-a; "round" softens the notch
+    const d=Math.min(0.9,Math.max(0,a)), e=Math.pow(round/6,2)*0.25+1e-4;
+    for(let k=0;k<MORPH_RES;k++){ const t=2*Math.PI*k/MORPH_RES; const c=Math.cos(n*t/2); const s=Math.pow(Math.sqrt(c*c+e)/Math.sqrt(1+e),0.7); const r=(1-d)+d*s; L.push([r*Math.cos(t),r*Math.sin(t)]); } return L; }
+  if(kind==='star'||kind==='poly'){ const V=[]; const m=kind==='star'?2*n:n; const ri=kind==='star'?Math.min(0.98,Math.max(0.1,a)):1;
+    for(let k=0;k<m;k++){ const t=2*Math.PI*k/m; const r=(kind==='star'&&k%2)?ri:1; V.push([r*Math.cos(t),r*Math.sin(t)]); }
+    const sm=chaikin(V,Math.round(round)); // densify straight edges so polar sampling has vertices to hit
+    const out=[]; for(let i=0;i<sm.length;i++){ const p=sm[i],q=sm[(i+1)%sm.length]; const seg=Math.max(1,Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])*MORPH_RES/(2*Math.PI))); for(let s=0;s<seg;s++){ const u=s/seg; out.push([p[0]+(q[0]-p[0])*u,p[1]+(q[1]-p[1])*u]); } } return out; }
+  return null; }
+// centre on the area centroid, CCW, max radius 1, then turn by rot (deg)
+function normLoop(L,rot){ if(!L||L.length<3) return null; let P2=L.slice(); if(polyArea(P2)<0) P2.reverse(); const [cx,cy]=polyCentroid(P2); let R=0; for(const p of P2) R=Math.max(R,Math.hypot(p[0]-cx,p[1]-cy)); R=R||1;
+  const c=Math.cos(rot*Math.PI/180), s=Math.sin(rot*Math.PI/180); return P2.map(p=>{ const x=(p[0]-cx)/R, y=(p[1]-cy)/R; return [x*c-y*s,x*s+y*c]; }); }
+// distance along each ray from the origin; star=false when a ray meets the outline more than once
+function polarSample(L,N){ const out=new Float32Array(N*2); let star=true; const n=L.length;
+  for(let k=0;k<N;k++){ const t=2*Math.PI*k/N, dx=Math.cos(t), dy=Math.sin(t); let best=0, hits=0;
+    const rs=[];
+    for(let i=0;i<n;i++){ const p=L[i],q=L[(i+1)%n]; const ex=q[0]-p[0], ey=q[1]-p[1]; const den=dx*ey-dy*ex; if(Math.abs(den)<1e-12) continue;
+      const r=(p[0]*ey-p[1]*ex)/den, u=(p[0]*dy-p[1]*dx)/den; if(r>1e-9 && u>=-1e-9 && u<=1+1e-9){ rs.push(r); if(r>best) best=r; } }
+    // a ray through a vertex meets two edges at the same distance: count distinct crossings only
+    rs.sort((x,y)=>x-y); for(let j=0;j<rs.length;j++) if(j===0||rs[j]-rs[j-1]>1e-6) hits++;
+    if(hits>1) star=false; out[k*2]=best*dx; out[k*2+1]=best*dy; }
+  return {pts:out,star}; }
+function arcSample(L,N){ return resample(L,N).pts; } // same start rule as the STL slicer (angle 0 from the centroid)
+function shapeOf(side){ const kind=P[side+'Kind']; let L;
+  if(kind==='svg'){ L=svgShapes[side]?svgShapes[side].loop:null; if(!L) L=presetLoop('circle'); }
+  else L=presetLoop(kind,P[side+'N'],P[side+'A'],P[side+'R']);
+  return normLoop(L,P[side+'Rot']); }
+let morphInfo={mode:'polar',fallback:false};
+function sampledPair(N){ const A=shapeOf('b'), B=shapeOf('t'); let mode=P.corr; const pa=polarSample(A,N), pb=polarSample(B,N);
+  let fallback=false; if(mode==='auto'){ mode=(pa.star&&pb.star)?'polar':'arc'; fallback=mode==='arc'; }
+  morphInfo={mode,fallback,notStar:!(pa.star&&pb.star)};
+  return mode==='polar'? [pa.pts,pb.pts,A,B] : [arcSample(A,N),arcSample(B,N),A,B]; }
+function reslice(){ readP(); profSync(true);
+  const N=Math.max(12,Math.round(P.segs)); const lh=P.layerH; const H=Math.max(lh,P.hgt); const layers=Math.max(1,Math.floor((H-1e-6)/lh));
+  const [sa,sb]=sampledPair(N); contours=[]; let rMax=0; const ext=[1e9,-1e9,1e9,-1e9];
+  for(let k=0;k<layers;k++){ const z=(k+0.5)*lh; const t=Math.min(1,Math.max(0,z/H));
+    const m=cM.eval(t); const R=profD(t)/2, off=profOff(t); const a=P.twist*t*Math.PI/180, ca=Math.cos(a), sn=Math.sin(a);
+    const pts=new Float32Array(N*2);
+    for(let i=0;i<N;i++){ const x=(sa[i*2]+(sb[i*2]-sa[i*2])*m)*R, y=(sa[i*2+1]+(sb[i*2+1]-sa[i*2+1])*m)*R; pts[i*2]=x*ca-y*sn+off; pts[i*2+1]=x*sn+y*ca; rMax=Math.max(rMax,Math.hypot(pts[i*2],pts[i*2+1])); }
+    for(let i=0;i<N;i++){ const x=pts[i*2],y=pts[i*2+1]; if(x<ext[0])ext[0]=x; if(x>ext[1])ext[1]=x; if(y<ext[2])ext[2]=y; if(y>ext[3])ext[3]=y; }
+    contours.push({pts,cx:off,cy:0}); }
+  contours.multi=0; contours.N=N; bb={mn:[-rMax,-rMax,0],mx:[rMax,rMax,layers*lh]}; morphInfo.rMax=rMax;
+  $('sizeInfo').textContent=`できあがり：幅 ${(ext[1]-ext[0]).toFixed(1)} × 奥行 ${(ext[3]-ext[2]).toFixed(1)} × 高さ ${(layers*lh).toFixed(1)} mm（層高 ${lh} mm × ${layers} 層）`;
+  drawShapePrev(); drawProfile(); recompute(); }
+function drawShapePrev(){ const cv=$('shapePrev'); if(!cv) return; const dpr=window.devicePixelRatio||1; const W=cv.clientWidth||300,Hh=cv.clientHeight||150; cv.width=W*dpr; cv.height=Hh*dpr; const c=cv.getContext('2d'); c.scale(dpr,dpr); c.clearRect(0,0,W,Hh);
+  if(!contours||!contours.length) return; const cs=getComputedStyle(document.documentElement); const acc=cs.getPropertyValue('--accent').trim(), acc2=cs.getPropertyValue('--accent2').trim(), fg2=cs.getPropertyValue('--fg2').trim(), line=cs.getPropertyValue('--line').trim();
+  const R=Math.max(1,morphInfo.rMax||1); const sc=Math.min(W,Hh)/2*0.9/R; const ox=W/2, oy=Hh/2; const N=contours.N;
+  c.strokeStyle=line; c.lineWidth=1; c.beginPath(); c.moveTo(ox-R*sc,oy); c.lineTo(ox+R*sc,oy); c.moveTo(ox,oy-R*sc); c.lineTo(ox,oy+R*sc); c.stroke();
+  const drawC=(ct,col,w,dash)=>{ c.strokeStyle=col; c.lineWidth=w; c.setLineDash(dash||[]); c.beginPath(); for(let i=0;i<=N;i++){ const k=i%N; const x=ox+ct.pts[k*2]*sc, y=oy-ct.pts[k*2+1]*sc; i?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.setLineDash([]); };
+  const L=contours.length; for(const f of [0.25,0.5,0.75]){ const ct=contours[Math.min(L-1,Math.round((L-1)*f))]; drawC(ct,fg2,0.8,[3,3]); }
+  drawC(contours[0],acc2,2); drawC(contours[L-1],acc,2);
+  const p0=contours[L-1]; c.fillStyle=acc; c.beginPath(); c.arc(ox+p0.pts[0]*sc,oy-p0.pts[1]*sc,3,0,6.283); c.fill(); }
+// ---- SVG: largest closed outline ----
+function splitPath(d){
+  const tk=d.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g)||[]; let i=0, cmd='', cx=0,cy=0,sx=0,sy=0; const subs=[]; let cur=null;
+  const isC=t=>/^[a-zA-Z]$/.test(t); const num=()=>+tk[i++];
+  const start=(x,y)=>{ cur={d:[`M${x} ${y}`],closed:false}; subs.push(cur); };
+  while(i<tk.length){
+    if(isC(tk[i])) cmd=tk[i++]; else if(!cmd){ i++; continue; }
+    const rel=cmd!==cmd.toUpperCase(), C=cmd.toUpperCase(); const ox=rel?cx:0, oy=rel?cy:0;
+    if(C==='Z'){ if(cur){ cur.d.push('Z'); cur.closed=true; } cx=sx; cy=sy; cmd=''; if(i<tk.length && !/^[mM]$/.test(tk[i])) start(sx,sy); continue; }
+    if(i>=tk.length || isC(tk[i])) { continue; }
+    if(C==='M'){ const x=num()+ox,y=num()+oy; cx=sx=x; cy=sy=y; start(x,y); cmd=rel?'l':'L'; continue; }
+    if(!cur) start(cx,cy);
+    if(C==='L'){ const x=num()+ox,y=num()+oy; cur.d.push(`L${x} ${y}`); cx=x;cy=y; }
+    else if(C==='H'){ const x=num()+ox; cur.d.push(`L${x} ${cy}`); cx=x; }
+    else if(C==='V'){ const y=num()+oy; cur.d.push(`L${cx} ${y}`); cy=y; }
+    else if(C==='C'){ const a=[num()+ox,num()+oy,num()+ox,num()+oy,num()+ox,num()+oy]; cur.d.push('C'+a.join(' ')); cx=a[4];cy=a[5]; }
+    else if(C==='S'||C==='Q'){ const a=[num()+ox,num()+oy,num()+ox,num()+oy]; cur.d.push(C+a.join(' ')); cx=a[2];cy=a[3]; }
+    else if(C==='T'){ const a=[num()+ox,num()+oy]; cur.d.push('T'+a.join(' ')); cx=a[0];cy=a[1]; }
+    else if(C==='A'){ const rx=num(),ry=num(),rot=num(),la=num(),sw=num(),x=num()+ox,y=num()+oy; cur.d.push(`A${rx} ${ry} ${rot} ${la?1:0} ${sw?1:0} ${x} ${y}`); cx=x;cy=y; }
+    else { i++; }
+  }
+  for(const s of subs) s.d=s.d.join(' ');
+  return subs; }
+function svgLargestLoop(text){
+  const doc=new DOMParser().parseFromString(text,'image/svg+xml'); const root=doc.documentElement; if(!root||root.nodeName.toLowerCase()!=='svg') throw new Error('SVGとして読めませんでした');
+  const host=document.createElement('div'); host.style.cssText='position:absolute;left:-10000px;top:0;width:10px;height:10px;overflow:hidden;visibility:hidden';
+  const svg=document.importNode(root,true); host.appendChild(svg); document.body.appendChild(host);
+  try{
+    const skip=new Set(['defs','clippath','mask','symbol','marker','pattern','lineargradient','radialgradient','text','style','metadata','title','desc','use','image']);
+    const loops=[];
+    const matOf=(el)=>{ let m=new DOMMatrix(); let n=el; while(n&&n!==svg){ const tl=n.transform&&n.transform.baseVal; if(tl&&tl.numberOfItems){ const c=tl.consolidate(); if(c){ const q=c.matrix; m=new DOMMatrix([q.a,q.b,q.c,q.d,q.e,q.f]).multiply(m); } } n=n.parentNode; } return m; };
+    const add=(el,pts,closed)=>{ if(pts.length<3) return; const m=matOf(el); let out=pts.map(p=>[m.a*p[0]+m.c*p[1]+m.e, -(m.b*p[0]+m.d*p[1]+m.f)]);
+      const f=out[0], l=out[out.length-1]; const span=Math.max(1e-6,...out.map(p=>Math.hypot(p[0]-f[0],p[1]-f[1])));
+      if(Math.hypot(f[0]-l[0],f[1]-l[1])<span*0.02){ out.pop(); closed=true; } if(!closed) return; loops.push(out); };
+    const sampleD=(el,d,closed)=>{ const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',d); el.parentNode.insertBefore(p,el); let L=0; try{ L=p.getTotalLength(); }catch(e){}
+      const n=Math.min(4000,Math.max(64,Math.ceil(L))); const pts=[]; for(let k=0;k<n;k++){ const q=p.getPointAtLength(L*k/n); pts.push([q.x,q.y]); } p.remove(); add(el,pts,closed); };
+    const num=(el,a)=>parseFloat(el.getAttribute(a))||0;
+    const walk=(el)=>{ for(const c of el.children){ const t=c.nodeName.toLowerCase(); if(skip.has(t)) continue;
+      if(t==='g'||t==='a'||(t==='svg'&&c!==svg)){ walk(c); continue; }
+      if(t==='path'){ for(const s of splitPath(c.getAttribute('d')||'')) sampleD(c,s.d,s.closed); }
+      else if(t==='polygon'||t==='polyline'){ const v=(c.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number); const pts=[]; for(let k=0;k+1<v.length;k+=2) pts.push([v[k],v[k+1]]); add(c,pts,t==='polygon'); }
+      else if(t==='rect'){ const x=num(c,'x'),y=num(c,'y'),w=num(c,'width'),h=num(c,'height'); const rx=Math.min(w/2,num(c,'rx')||num(c,'ry')); if(rx>0){ const d=`M${x+rx} ${y}H${x+w-rx}A${rx} ${rx} 0 0 1 ${x+w} ${y+rx}V${y+h-rx}A${rx} ${rx} 0 0 1 ${x+w-rx} ${y+h}H${x+rx}A${rx} ${rx} 0 0 1 ${x} ${y+h-rx}V${y+rx}A${rx} ${rx} 0 0 1 ${x+rx} ${y}Z`; sampleD(c,d,true); } else add(c,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],true); }
+      else if(t==='circle'||t==='ellipse'){ const cx=num(c,'cx'),cy=num(c,'cy'); const rx=t==='circle'?num(c,'r'):num(c,'rx'), ry=t==='circle'?rx:num(c,'ry'); const pts=[]; for(let k=0;k<360;k++){ const a=2*Math.PI*k/360; pts.push([cx+rx*Math.cos(a),cy+ry*Math.sin(a)]); } add(c,pts,true); } } };
+    walk(svg);
+    if(!loops.length) throw new Error('閉じた形が見つかりませんでした');
+    let best=null, bestA=0; for(const L of loops){ const a=Math.abs(polyArea(L)); if(a>bestA){ bestA=a; best=L; } }
+    return {loop:best, count:loops.length};
+  } finally { host.remove(); } }
+function loadSvgFor(side,file){ const r=new FileReader(); r.onload=()=>{ try{ const res=svgLargestLoop(r.result); svgShapes[side]={loop:res.loop,name:file.name,id:++svgSeq}; $(side+'SvgName').textContent=`${file.name}（閉じた形 ${res.count} 個のうち最大のもの）`; $(side+'Kind').value='svg'; kindUI(); reslice(); if(typeof record==='function') record(); }
+    catch(e){ $(side+'SvgName').textContent='読み込めませんでした：'+(e.message||e); } }; r.readAsText(file); }
+function kindUI(){ for(const s of ['b','t']){ const k=$(s+'Kind').value; const show=(id,on)=>{ $(id).hidden=!on; };
+  show(s+'SvgRow',true); if(!svgShapes[s]) $(s+'SvgName').textContent= k==='svg'?'未読み込み（読み込むまでは円で表示）':'読み込むと形がSVGに切り替わる'; show(s+'NRow',['petal','star','poly'].includes(k)); show(s+'ARow',['petal','star','ellipse'].includes(k)); show(s+'RRow',['petal','star','poly'].includes(k));
+  $(s+'ALab').textContent= k==='star'?'内側の比率':k==='ellipse'?'縦横比':'深さ';
+  $(s+'NRow').querySelector('label').textContent = k==='petal'?'花びらの数':k==='star'?'先の数':'角の数'; } }
+
+/* ---------- side profile: left and right walls, each its own spline, edited at true proportion ---------- */
+// prof.L / prof.R: points {h:0..1, x:mm} = distance of that wall from the axis, seen from the front (−Y), each side with its own heights.
+// At every height the section's circumscribed diameter is L+R and its centre sits at (R−L)/2 on X.
+// Each side keeps a bottom point (h=0) and a rim point (h=1); dragging a rim point up/down changes the height.
+const PROF_SHAPE=[[0,0],[0.25,0.1],[0.5,0.35],[0.75,0.7],[1,1]];
+const profFrom=(b,t,shape)=>(shape||PROF_SHAPE).map(([h,s])=>({h,x:(b+(t-b)*s)/2}));
+let prof={L:profFrom(70,110),R:profFrom(70,110)};
+let profSel=null, profDrag=null, profLastH=0; // profSel: {side:'L'|'R', i}
+const profSym=()=>$('symProf').checked;
+const profPair=()=>profSym()||$('pairH').checked;
+// give the other side points at exactly this side's heights (its curve sampled there)
+function alignFrom(sd){ const o=other(sd); const src=prof[o]; prof[o]=prof[sd].map(p=>({h:p.h,x:sideX(src,p.h)})); }
+const other=sd=>sd==='R'?'L':'R';
+function mirrorFrom(sd){ prof[other(sd)]=prof[sd].map(p=>({...p})); }
+// smooth curve through a side's points as a function of h (cubic Hermite, finite-difference tangents)
+function sideX(arr,h){ const n=arr.length; if(n===1) return arr[0].x; h=Math.min(1,Math.max(0,h));
+  let i=0; while(i<n-2 && h>arr[i+1].h) i++; const a=arr[i], b=arr[i+1]; const dh=Math.max(1e-6,b.h-a.h); const u=(h-a.h)/dh;
+  const sl=(p,q)=>(q.x-p.x)/Math.max(1e-6,q.h-p.h);
+  const tan=k=> k<=0? sl(arr[0],arr[1]) : k>=n-1? sl(arr[n-2],arr[n-1]) : sl(arr[k-1],arr[k+1]);
+  const m0=tan(i)*dh, m1=tan(i+1)*dh; const u2=u*u, u3=u2*u;
+  return (2*u3-3*u2+1)*a.x+(u3-2*u2+u)*m0+(-2*u3+3*u2)*b.x+(u3-u2)*m1; }
+function profEdges(h){ let L=sideX(prof.L,h), R=sideX(prof.R,h); if(L+R<4){ const c=(R-L)/2; L=2-c; R=2+c; } return [L,R]; }
+function profD(h){ const [L,R]=profEdges(h); return L+R; }
+function profOff(h){ const [L,R]=profEdges(h); return (R-L)/2; }
+function profMax(){ let m=0; for(let k=0;k<=200;k++) m=Math.max(m,profD(k/200)); return m; }
+function profMin(){ let m=1e9; for(let k=0;k<=200;k++) m=Math.min(m,profD(k/200)); return m; }
+const sgn=sd=>sd==='R'?1:-1;
+function profView(){ const cv=$('profile'); const W=cv.clientWidth||300, Hc=cv.clientHeight||260; const pad=16; const H=Math.max(1,+$('hgt').value||1);
+  let xm=30; for(let k=0;k<=100;k++){ const [L,R]=profEdges(k/100); xm=Math.max(xm,L,R); } for(const sd of ['L','R']) for(const p of prof[sd]) xm=Math.max(xm,p.x); xm*=1.15;
+  const v=profDrag&&profDrag.view? profDrag.view : {s:Math.min((Hc-2*pad-12)/H,(W/2-pad)/xm)};
+  const y0=v.y0!==undefined? v.y0 : Math.min(Hc-pad,(Hc+H*v.s)/2); // centre the drawing vertically
+  return {W,Hc,pad,H,s:v.s,cx:W/2,y0,
+    toXY:(h,x)=>[W/2+x*v.s, y0-h*H*v.s],                    // x: signed mm from the axis (right = +)
+    fromXY:(x,y)=>({h:(y0-y)/(H*v.s), x:(x-W/2)/v.s})}; }
+function drawProfile(){ const cv=$('profile'); if(!cv) return; const dpr=window.devicePixelRatio||1; const vw=profView(); const {W,Hc}=vw; cv.width=W*dpr; cv.height=Hc*dpr; const c=cv.getContext('2d'); c.scale(dpr,dpr); c.clearRect(0,0,W,Hc);
+  const cs=getComputedStyle(document.documentElement); const acc=cs.getPropertyValue('--accent').trim(), acc2=cs.getPropertyValue('--accent2').trim(), fg2=cs.getPropertyValue('--fg2').trim(), line=cs.getPropertyValue('--line').trim(), bad=cs.getPropertyValue('--warn').trim();
+  c.strokeStyle=line; c.lineWidth=1; c.font='10px '+cs.getPropertyValue('--mono'); c.fillStyle=fg2;
+  for(let z=0; z<=vw.H+1e-6; z+=10){ const y=vw.y0-z*vw.s; c.beginPath(); c.moveTo(vw.pad,y); c.lineTo(W-vw.pad,y); c.stroke(); if(z%50===0||z===0) c.fillText(z+'',2,y-2); }
+  c.beginPath(); c.moveTo(vw.cx,vw.y0+4); c.lineTo(vw.cx,vw.y0-vw.H*vw.s-4); c.setLineDash([2,3]); c.stroke(); c.setLineDash([]);
+  // centre line of the sections (when they lean)
+  let leans=false; for(let k=0;k<=20;k++) if(Math.abs(profOff(k/20))>0.05) leans=true;
+  if(leans){ c.strokeStyle=fg2; c.lineWidth=1; c.setLineDash([4,3]); c.beginPath(); for(let k=0;k<=80;k++){ const [x,y]=vw.toXY(k/80,profOff(k/80)); k?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.setLineDash([]); }
+  // walls, red where a wall leans more than the overhang limit
+  const lim=Math.tan((+$('ovh').value||30)*Math.PI/180); const S=160;
+  for(const sd of ['L','R']){ const g=sgn(sd); for(let k=0;k<S;k++){ const h0=k/S,h1=(k+1)/S; const x0m=g*profEdges(h0)[sd==='R'?1:0], x1m=g*profEdges(h1)[sd==='R'?1:0];
+      const lean=Math.abs(x1m-x0m)/((h1-h0)*vw.H); const [x0,y0]=vw.toXY(h0,x0m), [x1,y1]=vw.toXY(h1,x1m); c.strokeStyle= lean>lim? bad : acc; c.lineWidth=2; c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); } }
+  const eb=profEdges(0); const [bl]=vw.toXY(0,-eb[0]), [br]=vw.toXY(0,eb[1]); c.strokeStyle=acc2; c.lineWidth=2; c.beginPath(); c.moveTo(bl,vw.y0); c.lineTo(br,vw.y0); c.stroke();
+  // handles: filled = draggable (only the right side while symmetric)
+  const sym=profSym();
+  for(const sd of ['L','R']) prof[sd].forEach((p,i)=>{ const [x,y]=vw.toXY(p.h,sgn(sd)*p.x); const sel=profSel && profSel.i===i && (profSel.side===sd || sym); const active=!sym||sd==='R';
+    if(active){ c.fillStyle= sel? bad : acc; c.beginPath(); c.arc(x,y,sel?6:4.5,0,6.283); c.fill(); }
+    else { c.strokeStyle= sel? bad : acc; c.lineWidth=1; c.beginPath(); c.arc(x,y,3,0,6.283); c.stroke(); } });
+  { const [x,y]=vw.toXY(1,0); c.fillStyle=fg2; c.textAlign='center'; c.fillText('一番上の点を上下 → 高さ',x,y-8); c.textAlign='start'; }
+  if(document.activeElement!==$('dMax')) $('dMax').value=profMax().toFixed(1);
+  const arr=profSel?prof[profSel.side]:null; const has=!!(arr&&arr[profSel.i]);
+  $('pz').disabled=!has||profSel.i===0; $('pd').disabled=!has; $('pDel').disabled=!has||profSel.i===0||profSel.i===arr.length-1||arr.length<=2;
+  const busy=[$('pz'),$('pd')].includes(document.activeElement);
+  if(!busy){ if(has){ const p=arr[profSel.i]; $('pz').value=(p.h*vw.H).toFixed(1); $('pd').value=p.x.toFixed(1); } else { $('pz').value=''; $('pd').value=''; } } }
+// bottom/top size inputs <-> the two end points of each side (the diameter changes, the centre shift stays)
+function setEndD(i,D){ const a=i===0?prof.L[0]:prof.L[prof.L.length-1], b=i===0?prof.R[0]:prof.R[prof.R.length-1]; const o=(b.x-a.x)/2; D=Math.min(280,Math.max(10,D)); a.x=D/2-o; b.x=D/2+o; }
+function profSync(fromInputs){ if(fromInputs){ if(+$('dB').value) setEndD(0,+$('dB').value); if(+$('dT').value) setEndD(1,+$('dT').value); }
+  else { $('dB').value=Math.round((prof.L[0].x+prof.R[0].x)*10)/10; $('dT').value=Math.round((prof.L[prof.L.length-1].x+prof.R[prof.R.length-1].x)*10)/10; } }
+let profTimer=0; function profChanged(){ profSync(false); drawProfile(); cancelAnimationFrame(profTimer); profTimer=requestAnimationFrame(()=>reslice()); }
+function profHit(e){ const cv=$('profile'); const r=cv.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; const vw=profView(); let best=null, bd=11;
+  for(const sd of (profSym()?['R','L']:['R','L'])) prof[sd].forEach((p,i)=>{ const [px,py]=vw.toXY(p.h,sgn(sd)*p.x); const d=Math.hypot(px-x,py-y); if(d<bd){ bd=d; best={side:sd,i}; } });
+  if(best && profSym()) best.side='R'; // while symmetric the right side is the master
+  return {hit:best,x,y,vw}; }
+function clampH(arr,i,h){ const n=arr.length; if(i===0) return 0; if(i===n-1) return 1; return Math.min(arr[i+1].h-0.02,Math.max(arr[i-1].h+0.02,h)); }
+function setHeightFromRim(Hmm){ const H=Math.round(Math.min(380,Math.max(5,Hmm))*10)/10; $('hgt').value=H; profLastH=H; }
+// move point i of side sd: h (0..1, ignored at the ends) and its distance from the axis (mm, may cross the axis but keeps the section ≥10 mm wide at that point)
+function profSet(sd,i,h,x){ const arr=prof[sd]; const p=arr[i]; if(h!==null) p.h=clampH(arr,i,h);
+  if(h!==null && profPair() && prof[other(sd)][i]) prof[other(sd)][i].h=p.h;
+  if(x!==null){ const opp=sideX(prof[other(sd)],p.h); p.x=Math.min(280-opp,Math.max(10-opp,x)); }
+  if(profSym()) mirrorFrom(sd); }
+(function wireProfile(){ const cv=$('profile');
+  cv.addEventListener('pointerdown',e=>{ const t=profHit(e); if(!t.hit){ profSel=null; drawProfile(); return; } profSel=t.hit; profDrag={...t.hit,view:{s:t.vw.s,y0:t.vw.y0}}; cv.setPointerCapture(e.pointerId); drawProfile(); });
+  cv.addEventListener('pointermove',e=>{ if(!profDrag){ const t=profHit(e); cv.style.cursor= t.hit? (t.hit.i===prof[t.hit.side].length-1?'move':'grab') : 'crosshair'; return; }
+    const r=cv.getBoundingClientRect(); const vw=profView(); const q=vw.fromXY(e.clientX-r.left,e.clientY-r.top); const {side,i}=profDrag; const last=i===prof[side].length-1;
+    if(last) setHeightFromRim(q.h*vw.H); // the rim point sets the height
+    profSet(side,i, last?null:q.h, sgn(side)*q.x); profChanged(); });
+  const up=()=>{ if(profDrag){ profDrag=null; drawProfile(); } }; cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  cv.addEventListener('dblclick',e=>{ const t=profHit(e);
+    if(t.hit){ const arr=prof[t.hit.side]; if(t.hit.i>0 && t.hit.i<arr.length-1 && arr.length>2){ arr.splice(t.hit.i,1); if(profSym()) mirrorFrom(t.hit.side); else if(profPair()) prof[other(t.hit.side)].splice(t.hit.i,1); profSel=null; profChanged(); } return; }
+    const q=t.vw.fromXY(t.x,t.y); if(q.h<=0.01||q.h>=0.99) return; const sd= profSym()?'R': (q.x>=0?'R':'L'); const arr=prof[sd];
+    let k=1; while(k<arr.length && arr[k].h<q.h) k++; if(arr[k-1].h>q.h-0.02 || arr[k].h<q.h+0.02) return;
+    if(profPair() && !profSym()){ const o=prof[other(sd)]; o.splice(k,0,{h:q.h,x:sideX(o,q.h)}); } arr.splice(k,0,{h:q.h,x:sideX(arr,q.h)}); profSel={side:sd,i:k}; profSet(sd,k,null,Math.abs(q.x)); profChanged(); });
+  cv.addEventListener('keydown',e=>{ if(!profSel) return; const {side,i}=profSel; const arr=prof[side]; const p=arr[i]; if(!p) return; const H=+$('hgt').value||1; const st=e.shiftKey?5:1; const last=i===arr.length-1;
+    if(e.key==='ArrowUp'||e.key==='ArrowDown'){ const d=(e.key==='ArrowUp'?st:-st); if(last) setHeightFromRim(H+d); else profSet(side,i,p.h+d/H,null); }
+    else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ const d=(e.key==='ArrowRight'?st:-st); profSet(side,i,null,p.x+sgn(side)*d); } // moves the dot the way the arrow points on screen
+    else if((e.key==='Delete'||e.key==='Backspace') && i>0 && !last && arr.length>2){ arr.splice(i,1); if(profSym()) mirrorFrom(side); else if(profPair()) prof[other(side)].splice(i,1); profSel=null; profChanged(); e.preventDefault(); return; } else return;
+    e.preventDefault(); profChanged(); });
+  const fromNum=()=>{ if(!profSel) return; const {side,i}=profSel; const arr=prof[side]; if(!arr[i]) return; const H=+$('hgt').value||1; const last=i===arr.length-1;
+    if(last){ if(+$('pz').value) setHeightFromRim(+$('pz').value); profSet(side,i,null,+$('pd').value); } else profSet(side,i,(+$('pz').value)/H,+$('pd').value); profChanged(); };
+  for(const id of ['pz','pd']) $(id).addEventListener('change',fromNum);
+  $('pDel').onclick=()=>{ if(!profSel) return; const arr=prof[profSel.side]; if(profSel.i>0&&profSel.i<arr.length-1&&arr.length>2){ arr.splice(profSel.i,1); if(profSym()) mirrorFrom(profSel.side); else if(profPair()) prof[other(profSel.side)].splice(profSel.i,1); profSel=null; profChanged(); } };
+  const resetTo=shape=>{ const b=+$('dB').value, t=+$('dT').value; prof={L:profFrom(b,t,shape),R:profFrom(b,t,shape)}; profSel=null; profChanged(); };
+  $('pInit').onclick=()=>resetTo(PROF_SHAPE);
+  $('pReset').onclick=()=>resetTo([[0,0],[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]]);
+  const pairUI=()=>{ const pe=$('pairH'); pe.disabled=profSym(); pe.closest('label').style.opacity=profSym()?0.5:1; if(profSym()) pe.checked=true; };
+  $('symProf').addEventListener('change',()=>{ if(profSym()) mirrorFrom('R'); pairUI(); profSel=null; profChanged(); });
+  $('pairH').addEventListener('change',()=>{ if(profPair()) alignFrom(profSel?profSel.side:'R'); profSel=null; profChanged(); });
+  window.__pairUI=pairUI; pairUI();
+  $('ovh').addEventListener('change',drawProfile);
+  // ---- proportional scaling ----
+  profLastH=+$('hgt').value; const locked=()=>$('lockProp').getAttribute('aria-pressed')==='true';
+  $('lockProp').onclick=()=>{ const b=$('lockProp'); const on=!locked(); b.setAttribute('aria-pressed',on?'true':'false'); b.title=on?'縦横比を保つ':'縦横比を保たない'; b.textContent=on?'🔗':'⛓️‍💥'; };
+  // largest factor that keeps the vessel inside the limits (diameter 10-280, height 5-380)
+  function capF(f,withD,withH){ const dmx=profMax(), dmn=profMin(); const H=+$('hgt').value;
+    if(withD){ f=Math.min(f,280/dmx); f=Math.max(f,10/dmn); } if(withH){ f=Math.min(f,380/H); f=Math.max(f,5/H); } return f; }
+  function scaleD(f){ for(const sd of ['L','R']) for(const q of prof[sd]) q.x*=f; profSync(false); }
+  function scaleAll(f){ f=capF(f,true,true); scaleD(f); const H=Math.round(+$('hgt').value*f*10)/10; $('hgt').value=H; profLastH=H; reslice(); }
+  $('sUp').onclick=()=>scaleAll(1.1); $('sDown').onclick=()=>scaleAll(1/1.1);
+  // runs before the generic wiring (registered earlier), so the profile is scaled before reslice reads it
+  $('hgt').addEventListener('change',()=>{ const H=+$('hgt').value; if(!(H>0)) return; if(locked()&&profLastH>0){ let f=capF(H/profLastH,true,false); scaleD(f); if(Math.abs(f-H/profLastH)>1e-6){ $('hgt').value=Math.round(profLastH*f*10)/10; } } profLastH=+$('hgt').value; });
+  $('dMax').addEventListener('change',()=>{ const want=+$('dMax').value; const cur=profMax(); if(!(want>0)||!(cur>0)) return; let f=capF(want/cur,true,locked()); scaleD(f);
+    if(locked()){ const H=Math.round(+$('hgt').value*f*10)/10; $('hgt').value=H; profLastH=H; } reslice(); });
+})();
+
+/* ---------- build modulated path ---------- */
+function recompute(){ if(!contours) return; readP();
+  const N=contours.N, lh=P.layerH, L=contours.length; const H=L*lh;
+  const spiral=P.spiral; const valid=contours.map(c=>!!c);
+  const pts=[]; // {x,y,z,theta,h,nx,ny,layer}
+  let lastC=null;
+  // ---- bottom fill: concentric spiral (continuous, no stops) ----
+  const nB=Math.min(Math.max(0,Math.round(P.bottomN)),L); const pitch=P.lineW*P.fillPitch; let fillRings=0, fillConcave=0, fillZig=0, fillTravel=0;
+  const d2r0=Math.PI/180;
+  const wallDxy=(th,z)=>{ if(!P.onXY) return 0; const h=z/H; const g=P.modFree>0? Math.min(1,Math.max(0,(z-(nB+1)*lh-P.modFree)/3)) : 1; const gs=g*g*(3-2*g);
+    let v=P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r0*z,th,h,P.xyN,P.seed)*gs; return Math.max(-P.xyMax,Math.min(P.xyMax,v)); };
+  let bottomWaveMax=0;
+  const fb=ClayFill.bottom({contours,N,nB,lh,H,spiral,pitch,ext:Math.max(0,Math.round(P.bottomExt)),bottomShape:P.bottomShape,fillMode:P.fillMode,wallDxy,pts}); // shared/fill.js
+  lastC=fb.lastC; fillRings=fb.fillRings; fillConcave=fb.fillConcave; fillZig=fb.fillZig; fillTravel=fb.fillTravel; bottomWaveMax=fb.bottomWaveMax;
+  // join: in Vase mode the first wall turn climbs one layer above a flat surface, leaving a gap that grows to a full layer at the seam
+  let join = spiral ? P.joinMode : 'none'; if(join==='ramp' && nB===0) join='fill'; // no ramp on the bare bed
+  if(join==='ramp'){ const c=contours[nB]||lastC; if(c){ const z0=nB*lh;
+    for(let i=0;i<N;i++){ const t=i/N; const hh=Math.max(0.2,t); const x=c.pts[i*2], y=c.pts[i*2+1]; const dx=x-c.cx,dy=y-c.cy; const d=Math.hypot(dx,dy)||1;
+      pts.push({x,y,z:z0+lh*hh,theta:Math.atan2(dy,dx),h:(z0+lh*hh)/H,nx:dx/d,ny:dy/d,layer:nB,join:true,hh,em:hh}); } } }
+  for(let k=nB;k<L;k++){ const c=contours[k]||lastC; if(!c) continue; lastC=c; const c2=(spiral&&contours[k+1])?contours[k+1]:c;
+    for(let i=0;i<N;i++){ const t=i/N; const fillJ=(join==='fill'&&k===nB); const x=c.pts[i*2]+(c2.pts[i*2]-c.pts[i*2])*t, y=c.pts[i*2+1]+(c2.pts[i*2+1]-c.pts[i*2+1])*t;
+      const z=(k+1)*lh+(spiral?t*lh:0); const cx=c.cx,cy=c.cy; const dx=x-cx,dy=y-cy; const d=Math.hypot(dx,dy)||1;
+      pts.push({x,y,z,theta:Math.atan2(dy,dx),h:z/H,nx:dx/d,ny:dy/d,layer:k,travel:(i===0&&k===nB&&nB>0&&!spiral),join:fillJ,hh:fillJ?1+t:1,em:fillJ?1+t:1}); }
+    if(!spiral){ /* close loop by repeating first point */ const p=pts[pts.length-N]; pts.push(Object.assign({},p,{closeDup:true})); }
+  }
+  // modulation
+  const d2r=Math.PI/180; const fmin=P.fMin,fmax=P.fMax; const zcap=0.45*lh; let clampF=0,clampV=0,clampXY=0,clampZ=0;
+  const zWall=(nB+1)*lh, free=P.modFree, rampL=3;
+  const baseOf=p=> (P.onV && p.layer===0) ? P.vFirst : P.baseF; // first-layer speed (bottom layer 1, or wall layer 1 without bottom)
+  for(const p of pts){ const th=p.theta, z=p.z, h=p.h;
+    if(p.bottom){ p.m=p.bm||1; p.v=1; p.f=baseOf(p); p.X=p.x; p.Y=p.y; p.Z=z; p.bad=false; continue; }
+    const g = free>0 ? Math.min(1,Math.max(0,(z-zWall-free)/rampL)) : 1; const gs=g*g*(3-2*g);
+    let m=P.onF ? cF.eval(h)*(1+P.fAmp*wave('sin',P.fN*th+P.fTw*d2r*z,th,h,P.fN,P.seed)) : 1;
+    m=1+(m-1)*gs; if(m<fmin||m>fmax) clampF++; m=Math.min(fmax,Math.max(fmin,m)); p.m=m;
+    // speed system: height curve x circumferential wobble, multiplied with the thickness system's "flow" mode
+    let v=P.onV ? cV.eval(h)*(1+P.vAmp*wave('sin',P.vN*th+P.vTw*d2r*z,th,h,P.vN,P.seed+23)) : 1;
+    v=1+(v-1)*gs; if(v<P.vMin||v>P.vMax) clampV++; v=Math.min(P.vMax,Math.max(P.vMin,v)); p.v=v;
+    p.f = baseOf(p)*v/(P.wMode==='flow' ? m : 1);
+    let dxy=P.onXY ? P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r*z,th,h,P.xyN,P.seed) : 0;
+    dxy*=gs; if(Math.abs(dxy)>P.xyMax){ clampXY++; dxy=Math.sign(dxy)*P.xyMax; }
+    let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
+    dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
+    p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false; }
+  // overhang check vs point one turn below
+  const stride=spiral?N:N+1; const tanLim=Math.tan(P.ovh*d2r); let ovh=0;
+  for(let i=stride;i<pts.length;i++){ const p=pts[i],q=pts[i-stride]; if(p.bottom||q.bottom) continue; const dh=Math.hypot(p.X-q.X,p.Y-q.Y), dz=Math.max(0.05,p.Z-q.Z); if(dh/dz>tanLim){ p.bad=true; ovh++; } }
+  // stats
+  let len=0,time=0,fmn=1e9,fmx=0,mmn=1e9,mmx=0,rmn=1e9,rmx=0; for(let i=1;i<pts.length;i++){ const p=pts[i],q=pts[i-1]; const s=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z); if(p.travel){ time+=s/P.travelF; continue; } len+=s; time+=s/p.f; if(p.f<fmn)fmn=p.f; if(p.f>fmx)fmx=p.f; if(p.m<mmn)mmn=p.m; if(p.m>mmx)mmx=p.m; if(p.layer>0 && !p.join){ const r=p.f*p.m/P.baseF; if(r<rmn)rmn=r; if(r>rmx)rmx=r; } } if(rmx===0){ rmn=rmx=1; }
+  path={pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,clampZ,ovh,missing:valid.filter(v=>!v).length};
+  renderStats(); buildMesh(); }
+
+function fmtTime(s){ const m=Math.round(s/60); return m>=60? `${Math.floor(m/60)}時間${String(m%60).padStart(2,'0')}分` : `${m}分`; }
+function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}<small> 出力時間（移動除く）</small>`;
+  $('sLayers').textContent=p.layers; $('sPts').textContent=p.pts.length.toLocaleString(); $('sLen').textContent=(p.len/1000).toFixed(2)+' m';
+  $('sF').textContent=`${p.fmn.toFixed(1)}–${p.fmx.toFixed(1)} mm/s`; const w=P.lineW; $('sW').textContent=`${(w*p.mmn).toFixed(2)}–${(w*p.mmx).toFixed(2)} mm`; $('sR').textContent=`×${p.rmn.toFixed(2)}–${p.rmx.toFixed(2)}`;
+  $('sH').textContent=`${p.H.toFixed(1)} mm（設定 ${P.hgt} mm）`;
+  const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
+  if(p.ovh===0) add('', `オーバーハング ${P.ovh}° 以内`); else add('bad', `オーバーハング警告 ${p.ovh.toLocaleString()} 点（${P.ovh}° 超）。赤い部分は前の層に乗らない可能性`);
+  if(p.clampF) add('mid', `太さ倍率が可動域を超えて ${p.clampF.toLocaleString()} 点を切り詰め（${P.fMin}〜${P.fMax}）`); else add('', `太さ倍率は可動域内`);
+  if(p.clampV) add('mid', `速度倍率が可動域を超えて ${p.clampV.toLocaleString()} 点を切り詰め（${P.vMin}〜${P.vMax}）`); else add('', `速度倍率は可動域内`);
+  if(P.onV && P.vFirst!==P.baseF) add('', `初層は ${P.vFirst} mm/s（壁の基準は ${P.baseF} mm/s）`);
+  if(p.rmx>1.6||p.rmn<0.5) add('mid', `押出レートが基準の ×${p.rmn.toFixed(2)}–${p.rmx.toFixed(2)}。スクリューの追従と圧に注意`);
+  if(p.clampXY) add('mid', `XY変位が上限 ${P.xyMax}mm を超えて ${p.clampXY.toLocaleString()} 点を切り詰め`); else add('', `XY変位は上限内`);
+  if(p.clampZ) add('mid', `Z変位が層高の45%を超えて ${p.clampZ.toLocaleString()} 点を切り詰め`); else add('', `Z変位は層高の45%以内`);
+  const wmax=P.lineW*p.mmx; if(wmax>2*P.layerH) add('mid', `最も太い所の線幅見積 ${wmax.toFixed(2)}mm が層高の2倍を超える。盛り上がりに注意`);
+  if(p.nB>0 && p.fillZig) add(p.fillTravel>p.nB*6?'mid':'', `底面 ${p.nB} 層のうち ${p.fillZig} 層を「外周＋往復」で充填（線の向きは層ごとに90°回転、持ち上げ移動 ${p.fillTravel} 回）${p.fillZig<p.nB?'。残りは同心らせん':''}`);
+  if(p.nB>0 && p.fillZig<p.nB) add('', `底面 ${p.nB-p.fillZig} 層を同心らせんで充填（最大 ${p.fillRings} 周＋中心へ1周${p.bottomWaveMax>0.05?`、外周は壁の波 ±${p.bottomWaveMax.toFixed(2)}mm`:''}${P.bottomExt>0?`＋外へ ${Math.round(P.bottomExt)} 周`:''}）`);
+  if(P.spiral) add(p.join==='none'?'mid':'', p.join==='ramp'?'らせんへのつなぎ：底面の上に傾斜の1周（高さ0.2→1層、押出も比例）':p.join==='fill'?`らせんへのつなぎ：1周目の押出を1→2倍${P.joinMode==='ramp'?'（底面なしのため傾斜の代わり）':''}`:'らせんの1周目が底面から最大1層ぶん浮く（つなぎなし）');
+  if(P.modFree>0) add('', `壁の下 ${P.modFree} mm は変調なし（その上 3 mm で立ち上げ）`);
+  if(p.nB>0 && p.fillConcave && p.fillZig<p.nB) add('mid', `輪郭に凹みがあり、充填の内側で経路が重なる可能性（凹点 ${Math.round(p.fillConcave/p.nB)}）`);
+  if(contours.multi) add('mid', `${contours.multi} 層で輪郭が複数あり、最大のものだけ使用`);
+  if(p.missing) add('bad', `${p.missing} 層で輪郭が取れず、前の層を流用`);
+  { const D=2*(morphInfo.rMax||0); if(D>280) add('bad', `最大径 ${D.toFixed(0)} mm がベッド（300 mm）に対して大きすぎる`); else add('', `最大径 ${D.toFixed(0)} mm`);
+    if(p.H>380) add('bad', `高さ ${p.H.toFixed(0)} mm が造形範囲（400 mm）に近い`);
+    add(morphInfo.fallback?'mid':'', morphInfo.mode==='polar'?'点の対応：中心からの角度':morphInfo.fallback?'点の対応：周の長さ（中心から見て輪郭が重なる形があるため自動で切替）':'点の対応：周の長さ');
+    if(morphInfo.mode==='polar'&&morphInfo.notStar) add('bad','中心から見て輪郭が重なる形を「中心からの角度」で混ぜている。形が崩れるので「周の長さ」に'); }
+  $('warns').innerHTML=W.join('');
+  const nbad=W.filter(w=>w.includes('warn bad')).length, nmid=W.filter(w=>w.includes('warn mid')).length;
+  $('hud').innerHTML=`${fmtTime(p.time)} · ${p.layers}層 · ${p.fmn.toFixed(0)}–${p.fmx.toFixed(0)} mm/s` + (nbad?` · <b>警告 ${nbad}</b>`:'') + (nmid?` · 注意 ${nmid}`:''); }
+
+/* ---------- three.js ---------- */
+const glc=$('gl'); const renderer=new THREE.WebGLRenderer({canvas:glc,antialias:true}); renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(35,1,1,2000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x667088,0.9)); const dl=new THREE.DirectionalLight(0xffffff,0.7); dl.position.set(1,-1.2,2); scene.add(dl);
+let grid=null, mesh=null; const target=new THREE.Vector3(0,0,50); let sph={r:260,th:0.9,ph:1.0};
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function colorOf(c){ return new THREE.Color(c); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); if(path) buildMesh(); }
+function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
+// free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
+function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:200; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
+function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); camera.aspect=w/h; const a=freeArea(); camera.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); camera.updateProjectionMatrix(); }
+function render(){ resize(); updateCam(); renderer.render(scene,camera); }
+// orbit
+let drag=null; glc.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}; glc.setPointerCapture(e.pointerId); });
+glc.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x,dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+  if(drag.b===2||drag.sh){ const s=sph.r*0.0015; const right=new THREE.Vector3(-Math.sin(sph.th),Math.cos(sph.th),0); target.addScaledVector(right,-dx*s); target.z+=dy*s; }
+  else { sph.th-=dx*0.008; sph.ph=Math.min(3.0,Math.max(0.05,sph.ph-dy*0.008)); } render(); });
+const endDrag=()=>{drag=null;}; glc.addEventListener('pointerup',endDrag); glc.addEventListener('pointercancel',endDrag); glc.addEventListener('contextmenu',e=>e.preventDefault());
+glc.addEventListener('wheel',e=>{ e.preventDefault(); sph.r=Math.min(1500,Math.max(20,sph.r*Math.exp(e.deltaY*0.0015))); render(); },{passive:false});
+// pinch
+let pinch=null; glc.addEventListener('touchstart',e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); },{passive:true});
+glc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); sph.r=Math.min(1500,Math.max(20,sph.r*pinch/d)); pinch=d; drag=null; render(); } },{passive:true});
+function fit(){ if(!bb) return; const cx=(bb.mn[0]+bb.mx[0])/2, cy=(bb.mn[1]+bb.mx[1])/2; target.set(cx,cy,bb.mx[2]/2); const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1],bb.mx[2]); const a=freeArea(); const t=Math.tan(camera.fov*Math.PI/360); const H=bb.mx[2]-bb.mn[2], W=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]);
+  if(a.w>0&&a.ah>50&&a.aw>50){ const fill=0.82; const top=sph.ph<0.3; const vh= top? W : H*Math.sin(sph.ph)+W*Math.abs(Math.cos(sph.ph)); sph.r=Math.max(vh*a.h/(2*t*fill*a.ah), W*a.h/(2*t*fill*a.aw))+W/2; } else sph.r=ext*2.2; render(); }
+$('btnFit').onclick=()=>{ sph.th=0.9; sph.ph=1.38; fit(); }; $('btnTop').onclick=()=>{ sph.ph=0.05; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
+
+const CH=12000; // points per chunk -> 48k vertices, keeps every index under 65535 (Uint16)
+let meshes=[];
+function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispose(); } meshes=[]; mesh=null;
+  const pts=path.pts, n=pts.length, lh=P.layerH; const byV=$('colorBy').value==='v';
+  $('legLo').textContent=byV?'遅い':'太い'; $('legHi').textContent=byV?'速い':'細い';
+  const cs=colorOf(css('--clay-slow')), cf=colorOf(css('--clay-fast')), cb=colorOf(css('--clay-bad')); const tmp=new THREE.Color();
+  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0.0,side:THREE.DoubleSide});
+  for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*4*3), col=new Float32Array(cn*4*3); const idx=[]; const idxEnd=new Uint32Array(cn);
+    for(let i=c0;i<c1;i++){ const p=pts[i]; const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)]; let tx=b.X-a.X, ty=b.Y-a.Y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl; const nx=-ty, ny=tx;
+      const w=P.lineW*p.m; const hw=w/2; const zt=p.Z, zb=p.Z-lh*(p.hh||1); const li=i-c0;
+      const v=[[p.X+nx*hw,p.Y+ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zb],[p.X+nx*hw,p.Y+ny*hw,zb]];
+      if(p.bad) tmp.copy(cb); else if(byV) tmp.copy(cs).lerp(cf,(path.fmx>path.fmn)?(p.f-path.fmn)/(path.fmx-path.fmn):0.5); else tmp.copy(cs).lerp(cf,(path.mmx>path.mmn)?1-(p.m-path.mmn)/(path.mmx-path.mmn):0.5);
+      for(let k=0;k<4;k++){ const o=(li*4+k)*3; pos[o]=v[k][0]; pos[o+1]=v[k][1]; pos[o+2]=v[k][2]; col[o]=tmp.r; col[o+1]=tmp.g; col[o+2]=tmp.b; }
+      if(li>0 && !p.travel){ const q=pts[i-1]; const jump=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z); if(jump<lh*6){ const A=(li-1)*4,B=li*4;
+        for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } } } idxEnd[li]=idx.length; }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.setIndex(new THREE.Uint16BufferAttribute(idx,1)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,mat); m.userData.idxEnd=idxEnd; m.userData.c0=c0; m.userData.total=idx.length; m.frustumCulled=false; scene.add(m); meshes.push(m); }
+  mesh=meshes[0]||null;
+  // cumulative sim time per point (travel moves at travel speed)
+  const ct=new Float64Array(n); for(let i=1;i<n;i++){ const a=pts[i-1],b=pts[i]; ct[i]=ct[i-1]+Math.hypot(b.X-a.X,b.Y-a.Y,b.Z-a.Z)/(b.travel?P.travelF:b.f); } path.ct=ct;
+  applyProgress(play.prog); }
+
+/* ---------- playback ---------- */
+const play={on:false,prog:1,last:0,raf:0};
+let nozzle=null;
+function makeNozzle(){ const grp=new THREE.Group(); const m=new THREE.MeshStandardMaterial({color:0x8a8f99,roughness:0.5,metalness:0.4});
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(2.5,6,24),m); cone.rotation.x=Math.PI/2; cone.position.z=3; grp.add(cone);
+  const cyl=new THREE.Mesh(new THREE.CylinderGeometry(4,4,16,24),m); cyl.rotation.x=Math.PI/2; cyl.position.z=14; grp.add(cyl);
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,12),new THREE.MeshStandardMaterial({color:colorOf(css('--warn'))})); tip.position.z=0; grp.add(tip);
+  return grp; }
+function applyProgress(prog){ if(!mesh||!path) return; play.prog=Math.min(1,Math.max(0,prog)); const pts=path.pts, n=pts.length;
+  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo;
+  for(const m of meshes){ const c0=m.userData.c0, len=m.userData.idxEnd.length; let cnt; if(play.prog>=1 || i>=c0+len-1) cnt=m.userData.total; else if(i<c0) cnt=0; else cnt=m.userData.idxEnd[i-c0]; m.geometry.setDrawRange(0,cnt); }
+  if(!nozzle){ nozzle=makeNozzle(); scene.add(nozzle); }
+  const p=pts[i], q=pts[Math.min(n-1,i+1)]; const u=(q!==p && path.ct[i+1]>path.ct[i])? (T-path.ct[i])/(path.ct[i+1]-path.ct[i]) : 0;
+  nozzle.position.set(p.X+(q.X-p.X)*u, p.Y+(q.Y-p.Y)*u, p.Z+(q.Z-p.Z)*u); nozzle.visible = play.prog<1 || play.on;
+  if(!play.scrubbing) $('scrub').value=Math.round(play.prog*1000);
+  $('playT').textContent = `${play.prog>=1 && !play.on ? '完了 ' : ''}${fmtTime(T)} · 層 ${p.layer+1}/${path.layers} · Z ${p.Z.toFixed(1)} · F ${p.f.toFixed(1)} mm/s · 太さ ×${p.m.toFixed(2)}`;
+  render(); }
+function tick(ts){ if(!play.on) return; const dt=(ts-play.last)/1000; play.last=ts; const total=path.ct[path.ct.length-1]; let prog=play.prog + dt*(+$('playSpd').value)/total; if(prog>=1){ prog=1; stopPlay(); } applyProgress(prog); if(play.on) play.raf=requestAnimationFrame(tick); }
+function startPlay(){ if(!path) return; if(play.prog>=1) play.prog=0; play.on=true; play.last=performance.now(); $('btnPlay').textContent='❚❚ 停止'; play.raf=requestAnimationFrame(tick); }
+function stopPlay(){ play.on=false; cancelAnimationFrame(play.raf); $('btnPlay').textContent='▶ 再生'; if(path) applyProgress(play.prog); }
+$('btnPlay').onclick=()=>{ play.on?stopPlay():startPlay(); };
+let scrubRaf=0; $('scrub').addEventListener('input',e=>{ if(play.on) stopPlay(); play.scrubbing=true; const v=+e.target.value/1000; cancelAnimationFrame(scrubRaf); scrubRaf=requestAnimationFrame(()=>applyProgress(v)); });
+$('scrub').addEventListener('change',e=>{ play.scrubbing=false; applyProgress(+e.target.value/1000); });
+if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
+
+/* ---------- G-code ---------- */
+function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
+  const out=[]; out.push(`; ClayMorph Lab  ${new Date().toISOString().slice(0,16)}`, `; morph bottom ${P.bKind} n${P.bN} a${P.bA} r${P.bR} rot${P.bRot} D${P.dB}${P.bKind==='svg'&&svgShapes.b?' '+svgShapes.b.name:''} -> top ${P.tKind} n${P.tN} a${P.tA} r${P.tR} rot${P.tRot} D${P.dT}${P.tKind==='svg'&&svgShapes.t?' '+svgShapes.t.name:''}`, `; height ${P.hgt}mm  twist ${P.twist}deg  corr ${morphInfo.mode}  profile L ${prof.L.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')} R ${prof.R.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')}  shape curve ${cM.y.map(v=>v.toFixed(2)).join(',')}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}  Z ${P.onZ?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | Z amp ${P.zAmp} n ${P.zN} tw ${P.zTw} ${P.zWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
+  out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
+  const bf=Math.round((P.onV?P.vFirst:P.baseF)*60); // skirt runs on the first layer
+  if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);
+    const sk=[]; for(let i=0;i<=N;i++){ const k=i%N; const x=c.pts[k*2],y=c.pts[k*2+1]; const dx=x-c.cx,dy=y-c.cy; const d=Math.hypot(dx,dy)||1; sk.push([x+dx/d*MP.skirtOff,y+dy/d*MP.skirtOff]); }
+    out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(lh+MP.hop)}`); out.push(`G0 F${tf} X${X(sk[0][0])} Y${Y(sk[0][1])}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)}`); out.push(`G1 F${bf}`);
+    for(let i=1;i<sk.length;i++){ const s=Math.hypot(sk[i][0]-sk[i-1][0],sk[i][1]-sk[i-1][1]); E+=s*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); }
+    out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); } }
+  out.push(first.bottom?`;TYPE:FILL`:`;TYPE:WALL-OUTER`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z+MP.hop)}`); out.push(`G0 F${tf} X${X(first.X)} Y${Y(first.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`);
+  let lastF=-1, lastLayer=-1;
+  for(let i=1;i<p.pts.length;i++){ const q=p.pts[i-1], r=p.pts[i]; if(r.layer!==lastLayer){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastLayer=r.layer; if(q.bottom&&!r.bottom) out.push(`;TYPE:WALL-OUTER`); }
+    if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q.Z,r.Z)+MP.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); lastF=-1; continue; }
+    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em||1); const F=Math.round(r.f*60); let line=`G1 `; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)} E${f3(E)}`; out.push(line); }
+  out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
+let dlCap=undefined;
+async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
+function setMsg(t,cls){ const m=$('msg'); m.textContent=t; m.className='msg '+(cls||''); }
+$('btnSave').onclick=async()=>{ if(!path) return; const name=($('fname').value||'claypath').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_'); const txt=gcode(); setMsg('書き出し中…');
+  const dl=await getDl();
+  if(dl){ try{ await dl.save({filename:name+'_gcode.txt',data:txt}); setMsg(`保存しました（${(txt.length/1024).toFixed(0)} KB）。拡張子を .gcode に直して使用`, 'ok'); }catch(e){ setMsg(e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした：'+(e&&e.message||e),'err'); } }
+  else { try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=name+'.gcode'; document.body.appendChild(a); a.click(); a.remove(); setMsg(`${name}.gcode を書き出しました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ setMsg('この表示では保存できません。コピーを使ってください','err'); } } };
+$('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
+
+/* ---------- load ---------- */
+for(const sd of ['b','t']){ $(sd+'SvgBtn').onclick=()=>$(sd+'SvgIn').click(); $(sd+'SvgIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) loadSvgFor(sd,f); e.target.value=''; }); }
+// drop an SVG on the view: goes to the top section
+const view=$('view'); view.addEventListener('dragover',e=>{e.preventDefault();}); view.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&/\.svg$/i.test(f.name)) loadSvgFor('t',f); });
+
+/* ---------- wiring ---------- */
+const fmt2=id=>{ const el=$(id); const v=$(id+'V'); if(v) v.textContent=(+el.value).toFixed(el.step&&el.step.includes('.')?2:(el.step==='0.5'?1:0)); };
+for(const id of ids){ const el=$(id); const reslices=['layerH','segs','spiral','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr'].includes(id); const ev = (el.type==='range')?'input':'change';
+  el.addEventListener(ev,()=>{ fmt2(id); if(reslices){ clearTimeout(sliceTimer); sliceTimer=setTimeout(reslice,(el.type==='range')?16:120); } else recompute(); }); fmt2(id); }
+$('btnReset').onclick=()=>{ for(const [id,v] of Object.entries({fAmp:0,fN:6,fTw:0,vAmp:0,vN:6,vTw:0,xyAmp:0,xyN:8,xyTw:0,zAmp:0,zN:4,zTw:0})){ $(id).value=v; fmt2(id);} $('xyWave').value='sin'; $('zWave').value='sin'; cF.set([1,1,1,1,1]); cV.set([1,1,1,1,1]); cXY.set([1,1,1,1,1]); cZ.set([1,1,1,1,1]); recompute(); };
+window.addEventListener('resize',()=>{ render(); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); });
+$('colorBy').addEventListener('change',()=>{ if(path) buildMesh(); });
+const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',applyTheme); new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+const dim=()=>{ for(const [id,sec] of [['onF','curveF'],['onV','curveV'],['onXY','curveXY'],['onZ','curveZ']]) $(sec).closest('section').classList.toggle('off',!$(id).checked); };
+['onF','onV','onXY','onZ'].forEach(id=>$(id).addEventListener('change',dim)); dim();
+const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cpl_info',on?'1':'0'); }catch(e){} };
+btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cpl_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
+['bKind','tKind'].forEach(id=>$(id).addEventListener('change',kindUI)); kindUI();
+/* ---------- undo / redo ---------- */
+// one snapshot = every control, the five curves, the side profile, the loaded SVGs and the 🔗 state
+const CURVES={F:cF,V:cV,XY:cXY,Z:cZ,M:cM};
+function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; }
+  return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), prof:{L:prof.L.map(q=>({...q})),R:prof.R.map(q=>({...q}))}, sym:$('symProf').checked, pair:$('pairH').checked, svg:{b:svgShapes.b,t:svgShapes.t}, lock:$('lockProp').getAttribute('aria-pressed')}; }
+const snapKey=o=>JSON.stringify([o.v,o.c,o.prof,o.sym,o.pair,o.svg.b&&o.svg.b.id,o.svg.t&&o.svg.t.id,o.lock]);
+function applySnap(o){ for(const k of ids){ const el=$(k); if(el.type==='checkbox') el.checked=!!o.v[k]; else el.value=o.v[k]; fmt2(k); }
+  for(const [k,c] of Object.entries(CURVES)) c.set(o.c[k]); prof={L:o.prof.L.map(q=>({...q})),R:o.prof.R.map(q=>({...q}))}; $('symProf').checked=!!o.sym; $('pairH').checked=o.pair!==false; window.__pairUI&&window.__pairUI(); profSel=null;
+  for(const sd of ['b','t']){ svgShapes[sd]=o.svg[sd]; $(sd+'SvgName').textContent= svgShapes[sd]? svgShapes[sd].name : ''; }
+  const lb=$('lockProp'); const on=o.lock==='true'; lb.setAttribute('aria-pressed',on?'true':'false'); lb.textContent=on?'🔗':'⛓️‍💥';
+  profLastH=+$('hgt').value; kindUI(); dim(); reslice(); }
+const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
+function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
+function setSetMsg(t){ const m=$('setMsg'); m.textContent=t; clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },2000); }
+function record(){ if(applying) return; const s=snap(); if(hist.cur && snapKey(s)===snapKey(hist.cur)) return; if(hist.cur) hist.past.push(hist.cur); if(hist.past.length>200) hist.past.shift(); hist.cur=s; hist.future=[]; histUI(); }
+function undo(){ clearTimeout(histTimer); record(); if(!hist.past.length) return; hist.future.push(hist.cur); hist.cur=hist.past.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('元に戻しました'); }
+function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) return; hist.past.push(hist.cur); hist.cur=hist.future.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('やり直しました'); }
+// record after any edit settles: slider/number edits, curve and profile drags, buttons, SVG loads
+const later=()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); };
+for(const ev of ['input','change','pointerup','click','dblclick','keyup']) $('left').addEventListener(ev,later);
+$('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
+// shortcuts: leave text areas and the file-name box to the browser's own undo
+document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));
+  if(native) return; const k=e.key.toLowerCase();
+  if(k==='z' && !e.shiftKey){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); undo(); }
+  else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
+$('fname').value='claymorph';
+reslice(); applyTheme(); sph.th=0.9; sph.ph=1.38; fit(); record();
+window.ClayMorph={profView, profile:()=>prof, sideX}; // for scripted checks
+})();
+</script>

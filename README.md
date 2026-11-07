@@ -4,7 +4,14 @@
 
 **使う：** https://kanejun06.github.io/claypath-lab/
 
-インストール不要。ブラウザで開くだけで動きます（three.js を CDN から読むので、ネット接続が要ります）。手元で使うときは、`shared/` フォルダも一緒に置いてください（機械の設定と底面の充填を 3 つのツールで共有しています）。STL はブラウザの中だけで処理され、どこにも送信されません。
+インストール不要。ブラウザで開くだけで動きます（three.js を CDN から読むので、ネット接続が要ります）。3 つのツールは機械の設定・底面の充填・切り替えタブを `shared/` で共有しているので、手元で使うときは次のどちらかにしてください。
+
+- **1 枚で動く版**（`standalone/`）：`shared/` の中身を埋め込んだ HTML です。ファイル 1 枚を保存して開くだけで動きます（学生への配布や改造用にも）
+  - [claypath-lab.html](https://kanejun06.github.io/claypath-lab/standalone/claypath-lab.html)／[clayline-lab.html](https://kanejun06.github.io/claypath-lab/standalone/clayline-lab.html)／[claymorph-lab.html](https://kanejun06.github.io/claypath-lab/standalone/claymorph-lab.html)（開いてから「名前を付けて保存」）
+  - 3 枚を同じフォルダに置けば、タブでの切り替えもそのまま使えます
+- リポジトリをフォルダごと保存する（GitHub の「Code → Download ZIP」）
+
+`standalone/` は `python3 tools/build-standalone.py` で作り直します。ツールや `shared/` を変えたら、これを実行してから一緒にコミットしてください（`standalone/` を直接編集しない）。STL はブラウザの中だけで処理され、どこにも送信されません。
 
 ## 使い方
 
