@@ -458,6 +458,49 @@ function mount(after,tool,onPick){ if(!after||!list(tool).length) return; const 
 return {list,mount};
 })();
 </script>
+<script>/* ---- inlined from shared/gline.js ---- */
+/* ClayLine Lab / ClayPath Lab / ClayMorph Lab — the G-code line at the playback position
+ * Adds a "G-code" toggle (off by default) to the play bar. When on, a small panel above the bar shows the
+ * line the nozzle is on (with the line before and after) and its line number in the file.
+ *   ClayGLine.mount(playbarElement, build)  build() returns {text, map}: the G-code text and, for every
+ *                                           path point, the 1-based line number of the command that ends there
+ *   ClayGLine.show(i, path)                 call from the playback update with the current point index;
+ *                                           a different path object means the G-code is rebuilt (lazily)
+ */
+window.ClayGLine=(function(){
+"use strict";
+let build=null, bar=null, panel=null, cb=null, on=false, cache=null, key=null, idx=-1, timer=0;
+function css(){ const st=document.createElement('style'); st.textContent=
+  '.glt{display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer}'+
+  '.gline{position:absolute;z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-family:var(--mono);font-size:11px;line-height:1.5;pointer-events:none}'+
+  '.gline[hidden]{display:none}'+
+  '.gline .gl{white-space:pre;overflow:hidden;text-overflow:ellipsis;opacity:.55}'+
+  '.gline .gl.cur{opacity:1;color:var(--accent)}'+
+  '.gline .gn{display:inline-block;min-width:7ch;text-align:right;margin-right:1ch;opacity:.6;font-variant-numeric:tabular-nums}'+
+  '.gline .gh{opacity:.6;font-size:10px}';
+  document.head.appendChild(st); }
+// keep the panel just above the bar (the bar moves with the layout's media queries)
+function place(){ const cs=getComputedStyle(bar); panel.style.left=cs.left; panel.style.right=cs.right;
+  panel.style.bottom=(parseFloat(cs.bottom)||0)+bar.offsetHeight+6+'px'; }
+function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function render(){ if(!on||!panel) return; place();
+  if(!cache){ panel.innerHTML='<div class="gh">G-code を作っています…</div>'; clearTimeout(timer);
+    timer=setTimeout(()=>{ try{ const r=build&&build(); cache=r? {lines:r.text.split('\n'), map:r.map} : null; }catch(e){ cache=null; } if(!cache) panel.innerHTML='<div class="gh">—</div>'; else render(); },120); return; }
+  const L=cache.lines, total=L[L.length-1]===''? L.length-1 : L.length; let n=cache.map[Math.max(0,Math.min(cache.map.length-1,idx))]; if(n==null) n=1;
+  let h=`<div class="gh">${n.toLocaleString()} 行目 / ${total.toLocaleString()} 行</div>`;
+  for(const k of [n-1,n,n+1]){ if(k<1||k>total) continue; h+=`<div class="gl${k===n?' cur':''}"><span class="gn">${k}</span>${esc(L[k-1])}</div>`; }
+  panel.innerHTML=h; }
+function mount(barEl,fn){ if(!barEl) return; bar=barEl; build=fn; css();
+  const lab=document.createElement('label'); lab.className='glt'; lab.title='再生位置の G-code の行を、シークバーの上に表示する';
+  lab.innerHTML='<input type="checkbox" id="gLineOn">G-code'; bar.insertBefore(lab, bar.querySelector('.t'));
+  panel=document.createElement('div'); panel.className='gline'; panel.hidden=true; panel.setAttribute('aria-live','off'); bar.parentNode.insertBefore(panel,bar);
+  cb=lab.querySelector('input'); cb.checked=false;
+  cb.addEventListener('change',()=>{ on=cb.checked; panel.hidden=!on; cache=null; render(); });
+  window.addEventListener('resize',()=>{ if(on) place(); }); }
+function show(i,path){ idx=i; if(path!==key){ key=path; cache=null; } if(on) render(); }
+return {mount,show};
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -806,7 +849,7 @@ function makeNozzle(){ const grp=new THREE.Group(); const m=new THREE.MeshStanda
   const tip=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,12),new THREE.MeshStandardMaterial({color:colorOf(css('--warn'))})); grp.add(tip); return grp; }
 const KN={wall:'壁の線',frame:'枠',join:'つなぎ',fill:'底面'};
 function applyProgress(prog){ if(!meshes.length||!path) return; play.prog=Math.min(1,Math.max(0,prog)); const pts=path.pts, n=pts.length;
-  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo;
+  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo; if(window.ClayGLine) ClayGLine.show(i,path);
   for(const m of meshes){ const c0=m.userData.c0, len=m.userData.idxEnd.length; let cnt; if(play.prog>=1 || i>=c0+len-1) cnt=m.userData.total; else if(i<c0) cnt=0; else cnt=m.userData.idxEnd[i-c0]; m.geometry.setDrawRange(0,cnt); }
   if(travelLine){ let c=0; if(play.prog>=1) c=path.travIdx.length; else { let l=0,h=path.travIdx.length; while(l<h){ const md=(l+h)>>1; if(path.travIdx[md]<=i) l=md+1; else h=md; } c=l; } travelLine.geometry.setDrawRange(0,c?path.travV[c-1]:0); }
   if(!nozzle){ nozzle=makeNozzle(); scene.add(nozzle); }
@@ -832,7 +875,7 @@ $('scrub').addEventListener('change',e=>{ play.scrubbing=false; applyProgress(+e
 $('showTravel').addEventListener('change',()=>{ if(travelLine){ travelLine.visible=$('showTravel').checked; render(); } });
 
 /* ================= G-code ================= */
-function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(Math.PI*(P.filD/2)**2)*P.eMul; const tf=Math.round(P.travelF*60); const f3=v=>v.toFixed(3); const X=v=>f3(v+P.bedX), Y=v=>f3(v+P.bedY);
+function gcode(M){ /* M (optional): filled with the G-code line number of every path point, for the playback G-code panel */ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(Math.PI*(P.filD/2)**2)*P.eMul; const tf=Math.round(P.travelF*60); const f3=v=>v.toFixed(3); const X=v=>f3(v+P.bedX), Y=v=>f3(v+P.bedY);
   const out=[`; ClayLine Lab  ${new Date().toISOString().slice(0,16)}  source ${svgName}`,
     `; layer ${lh}mm  height ${P.height}mm  layers ${p.layers} (bottom ${p.nB})  lineW ${P.lineW}  speed ${P.baseF}/${P.vFirst}mm/s`,
     `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} glideRetract ${P.glideRet?'on':'off'} endOverlap ${P.endOv}% lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
@@ -847,7 +890,7 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
     for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
   let lastF=-1,lastL=-1,lastK='',gl=false;
-  for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null;
+  for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null; if(M&&i>0) M[i-1]=out.length-1;
     if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); gl=false; lastF=-1; }
     if(r.layer!==lastL){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastL=r.layer; }
     if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q?q.Z:0,r.Z)+P.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); E+=P.prime; out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract${P.prime?' +prime':''}`); lastF=-1; lastK=''; continue; }
@@ -855,6 +898,7 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
     const tk=r.kind==='join'?'JOIN':r.kind==='frame'?'FRAME':r.kind==='fill'?'FILL':'WALL'; if(tk!==lastK){ out.push(`;TYPE:${tk}`); lastK=tk; }
     const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
+  if(M){ M[p.pts.length-1]=out.length-1; const st=[]; let ln=1; for(const o of out){ st.push(ln); ln+=o.split('\n').length; } for(let k=0;k<M.length;k++) if(M[k]!=null) M[k]=st[M[k]]; }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
 let dlCap; async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
 function setMsg(t,cls){ const m=$('msg'); m.textContent=t; m.className='msg '+(cls||''); }
@@ -863,6 +907,7 @@ async function saveText(base,ext,txt){ const dl=await getDl();
   try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${base}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); setMsg(`${base}.${ext} を書き出しました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ setMsg('この表示では保存できません。コピーを使ってください','err'); } }
 const safe=s=>(s||'clayline').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_');
 $('btnSave').onclick=()=>{ if(path) saveText(safe($('fname').value),'gcode',gcode()); };
+if(window.ClayGLine) ClayGLine.mount(document.querySelector('.playbar'),()=>{ if(!path) return null; const M=[]; return {text:gcode(M),map:M}; }); // shared/gline.js: G-code line above the seek bar
 $('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
 $('btnSampleSave').onclick=()=>saveText('clayline_sample_tray','svg',sampleSVGText());
 

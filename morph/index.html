@@ -368,6 +368,7 @@ M82 ;absolute extrusion mode</textarea>
 <script src="../shared/fill.js"></script>
 <script src="../shared/wall.js"></script>
 <script src="../shared/settings.js"></script>
+<script src="../shared/gline.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -861,7 +862,7 @@ function makeNozzle(){ const grp=new THREE.Group(); const m=new THREE.MeshStanda
   const tip=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,12),new THREE.MeshStandardMaterial({color:colorOf(css('--warn'))})); tip.position.z=0; grp.add(tip);
   return grp; }
 function applyProgress(prog){ if(!mesh||!path) return; play.prog=Math.min(1,Math.max(0,prog)); const pts=path.pts, n=pts.length;
-  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo;
+  const T=path.ct[n-1]*play.prog; let lo=0,hi=n-1; while(lo<hi){ const mid=(lo+hi+1)>>1; if(path.ct[mid]<=T) lo=mid; else hi=mid-1; } const i=lo; if(window.ClayGLine) ClayGLine.show(i,path);
   for(const m of meshes){ const c0=m.userData.c0, len=m.userData.idxEnd.length; let cnt; if(play.prog>=1 || i>=c0+len-1) cnt=m.userData.total; else if(i<c0) cnt=0; else cnt=m.userData.idxEnd[i-c0]; m.geometry.setDrawRange(0,cnt); }
   if(!nozzle){ nozzle=makeNozzle(); scene.add(nozzle); }
   const p=pts[i], q=pts[Math.min(n-1,i+1)]; const u=(q!==p && path.ct[i+1]>path.ct[i])? (T-path.ct[i])/(path.ct[i+1]-path.ct[i]) : 0;
@@ -878,7 +879,7 @@ $('scrub').addEventListener('change',e=>{ play.scrubbing=false; applyProgress(+e
 if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
 
 /* ---------- G-code ---------- */
-function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
+function gcode(M){ /* M (optional): filled with the G-code line number of every path point, for the playback G-code panel */ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
   const out=[]; out.push(`; ClayMorph Lab  ${new Date().toISOString().slice(0,16)}`, `; morph bottom ${P.bKind} n${P.bN} a${P.bA} r${P.bR} rot${P.bRot} D${P.dB}${P.bKind==='svg'&&svgShapes.b?' '+svgShapes.b.name:''} -> top ${P.tKind} n${P.tN} a${P.tA} r${P.tR} rot${P.tRot} D${P.dT}${P.tKind==='svg'&&svgShapes.t?' '+svgShapes.t.name:''}`, `; height ${P.hgt}mm  twist ${P.twist}deg  corr ${morphInfo.mode}  profile L ${prof.L.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')} R ${prof.R.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')}  shape curve ${cM.y.map(v=>v.toFixed(2)).join(',')}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
   if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
@@ -893,9 +894,10 @@ function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*l
     out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); } }
   out.push(first.bottom?`;TYPE:FILL`:`;TYPE:WALL-OUTER`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z+MP.hop)}`); out.push(`G0 F${tf} X${X(first.X)} Y${Y(first.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`);
   let lastF=-1, lastLayer=-1;
-  for(let i=1;i<p.pts.length;i++){ const q=p.pts[i-1], r=p.pts[i]; if(r.layer!==lastLayer){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastLayer=r.layer; if(q.bottom&&!r.bottom) out.push(`;TYPE:WALL-OUTER`); }
+  for(let i=1;i<p.pts.length;i++){ const q=p.pts[i-1], r=p.pts[i]; if(M&&i>0) M[i-1]=out.length-1; if(r.layer!==lastLayer){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastLayer=r.layer; if(q.bottom&&!r.bottom) out.push(`;TYPE:WALL-OUTER`); }
     if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q.Z,r.Z)+MP.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); lastF=-1; continue; }
     const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em||1); const F=Math.round(r.f*60); let line=`G1 `; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)} E${f3(E)}`; out.push(line); }
+  if(M){ M[p.pts.length-1]=out.length-1; const st=[]; let ln=1; for(const o of out){ st.push(ln); ln+=o.split('\n').length; } for(let k=0;k<M.length;k++) if(M[k]!=null) M[k]=st[M[k]]; }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
 let dlCap=undefined;
 async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
@@ -906,6 +908,7 @@ $('btnSave').onclick=async()=>{ if(!path) return; const name=($('fname').value||
   else { try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=name+'.gcode'; document.body.appendChild(a); a.click(); a.remove(); setMsg(`${name}.gcode を書き出しました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ setMsg('この表示では保存できません。コピーを使ってください','err'); } } };
 $('btnStl').onclick=()=>{ if(!window.ClaySTL||!contours||!contours.length) return; readP(); const lh=P.layerH, L=contours.length;
   const tri=ClaySTL.solid(contours, contours.map((c,k)=>(k+0.5)*lh), L*lh, P.lineW/2); const r=ClaySTL.save(tri,$('fname').value); setMsg(r.msg,r.ok?'ok':'err'); };
+if(window.ClayGLine) ClayGLine.mount(document.querySelector('.playbar'),()=>{ if(!path) return null; const M=[]; return {text:gcode(M),map:M}; }); // shared/gline.js: G-code line above the seek bar
 $('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
 
 /* ---------- load ---------- */
