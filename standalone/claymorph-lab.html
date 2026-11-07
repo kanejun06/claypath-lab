@@ -267,6 +267,8 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="note">ガード：|ΔZ| は層高の45%まで。超えた分は切り詰める</div>
     </section>
 
+    <section id="bumpSec"></section>
+
     <section>
       <h2>ガード</h2>
       <div class="row"><label for="ovh">オーバーハング警告</label><input id="ovh" type="number" step="1" min="5" max="80" value="30"><span class="unit">°</span></div>
@@ -456,6 +458,84 @@ function apply(){ setValues(); if(applied) return; applied=true;
 // after loading a settings file: put the machine values back unless a teacher is testing
 function reapply(){ if(!teacher) setValues(); }
 window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
+})();
+</script>
+<script>/* ---- inlined from shared/bump.js ---- */
+/* ClayPath Lab / ClayMorph Lab — image bump: a black-and-white image wrapped around the wall
+ * The image is wrapped once around the vessel (or repeated), and its brightness pushes the wall out or in (XY,
+ * along the wall's outward direction) by up to the set depth. White = 1, black = 0 (after blur / invert).
+ * The page calls ClayBump.mount(container, onChange) once, and ClayBump.disp(theta, z, zWall, H) for every wall point.
+ * Detail is limited by the toolpath: points per turn around, one layer (0.9 mm) up.
+ */
+window.ClayBump=(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const DEF={on:false, amp:1.0, mode:'out', ru:1, rv:1, rot:0, z0:0, z1:100, blur:1, inv:false};
+const S={...DEF};
+let src=null;   // {name, url(dataURL of the downscaled image), w, h, g:Float32Array (0..1 brightness)}
+let proc=null;  // processed brightness (blur + invert), same size
+let onChange=()=>{};
+const IDS={bmpOn:'on',bmpAmp:'amp',bmpMode:'mode',bmpRu:'ru',bmpRv:'rv',bmpRot:'rot',bmpZ0:'z0',bmpZ1:'z1',bmpBlur:'blur',bmpInv:'inv'};
+function html(){ return `
+  <h2><label class="toggle"><input id="bmpOn" type="checkbox">画像のバンプ（白黒の画像で凹凸）</label></h2>
+  <div class="row keep" style="flex-wrap:wrap"><button id="bmpLoad" type="button" class="sm">画像を読み込む</button><input id="bmpIn" type="file" accept="image/*" hidden>
+    <button id="bmpSampleDots" type="button" class="sm">サンプル（ドット）</button><button id="bmpSampleWave" type="button" class="sm">サンプル（斜めの波）</button></div>
+  <canvas id="bmpPrev" class="bmpprev" aria-label="バンプに使う画像（左右が器の一周、上が口）"></canvas>
+  <div class="note" id="bmpInfo">画像を読み込むか、サンプルを選んでください（白が外へ・黒がそのまま）。</div>
+  <div class="row"><label for="bmpAmp">深さ</label><input id="bmpAmp" type="range" min="0" max="4" step="0.05" value="1"><span class="val" id="bmpAmpV">1.00</span><span class="unit">mm</span></div>
+  <div class="row"><label for="bmpMode">向き</label><select id="bmpMode"><option value="out">白い所を外へ浮き出す</option><option value="in">白い所を内へ彫り込む</option><option value="mid">灰色を基準に、白は外・黒は内</option></select></div>
+  <div class="row"><label for="bmpRu">周方向の繰り返し</label><input id="bmpRu" type="range" min="1" max="12" step="1" value="1"><span class="val" id="bmpRuV">1</span></div>
+  <div class="row"><label for="bmpRv">高さ方向の繰り返し</label><input id="bmpRv" type="range" min="1" max="12" step="1" value="1"><span class="val" id="bmpRvV">1</span></div>
+  <div class="row"><label for="bmpRot">回転（貼る位置）</label><input id="bmpRot" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="bmpRotV">0</span><span class="unit">°</span></div>
+  <div class="row"><label for="bmpZ0">貼る範囲（壁の下端〜口を0〜100）</label><input id="bmpZ0" type="number" step="5" min="0" max="95" value="0"><span class="unit">〜</span><input id="bmpZ1" type="number" step="5" min="5" max="100" value="100"><span class="unit">%</span></div>
+  <div class="row"><label for="bmpBlur">ぼかし</label><input id="bmpBlur" type="range" min="0" max="8" step="1" value="1"><span class="val" id="bmpBlurV">1</span><span class="unit">px</span></div>
+  <div class="row"><label class="toggle"><input id="bmpInv" type="checkbox">白黒を反転</label></div>
+  <div class="note">画像の左右が器の一周（左端＝0°、右回り）、上が口の側。細かさは「1周の点数」（周方向）と層高 0.9 mm（高さ方向）で決まるので、細かい模様は点数を増やすか、ぼかして大きな形にする。深さが大きいとオーバーハング警告が出やすい。「壁の下は変調なし」もかかる。</div>`; }
+function css(){ const st=document.createElement('style'); st.textContent='.bmpprev{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:#000;image-rendering:pixelated;margin:4px 0}'; document.head.appendChild(st); }
+function readUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; S[k]= el.type==='checkbox'? el.checked : el.tagName==='SELECT'? el.value : +el.value; } if(S.z1<=S.z0) S.z1=Math.min(100,S.z0+5); }
+function writeUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!S[k]; else el.value=S[k]; const v=$(id+'V'); if(v) v.textContent= k==='amp'? (+S[k]).toFixed(2) : String(S[k]); } }
+function process(){ if(!src){ proc=null; return; } const {w,h,g}=src; const r=Math.round(S.blur); let a=Float32Array.from(g);
+  if(r>0){ const tmp=new Float32Array(w*h);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let s=0; for(let k=-r;k<=r;k++) s+=a[y*w+((x+k)%w+w)%w]; tmp[y*w+x]=s/(2*r+1); }        // wraps around
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let s=0,n=0; for(let k=-r;k<=r;k++){ const yy=y+k; if(yy<0||yy>=h) continue; s+=tmp[yy*w+x]; n++; } a[y*w+x]=s/n; } }
+  if(S.inv) for(let i=0;i<a.length;i++) a[i]=1-a[i]; proc=a; }
+function preview(){ const cv=$('bmpPrev'); if(!cv) return; if(!proc){ cv.width=1; cv.height=1; cv.style.display='none'; return; } cv.style.display='block';
+  const {w,h}=src; cv.width=w; cv.height=h; const c=cv.getContext('2d'); const im=c.createImageData(w,h);
+  for(let i=0;i<w*h;i++){ const v=Math.round(proc[i]*255); im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v; im.data[i*4+3]=255; } c.putImageData(im,0,0);
+  $('bmpInfo').textContent=`${src.name}（${w}×${h} px）`; }
+function setImage(name,canvas){ const MAX=360; let w=canvas.width, h=canvas.height; const s=Math.min(1,MAX/Math.max(w,h)); w=Math.max(4,Math.round(w*s)); h=Math.max(4,Math.round(h*s));
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const c=cv.getContext('2d'); c.fillStyle='#000'; c.fillRect(0,0,w,h); c.drawImage(canvas,0,0,w,h);
+  const d=c.getImageData(0,0,w,h).data; const g=new Float32Array(w*h); for(let i=0;i<w*h;i++) g[i]=(0.2126*d[i*4]+0.7152*d[i*4+1]+0.0722*d[i*4+2])/255*(d[i*4+3]/255);
+  src={name,url:cv.toDataURL('image/png'),w,h,g}; process(); preview(); }
+function loadURL(name,url,cb){ const im=new Image(); im.onload=()=>{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; cv.getContext('2d').drawImage(im,0,0); setImage(name,cv); cb&&cb(); }; im.onerror=()=>{ $('bmpInfo').textContent='画像を読めませんでした'; }; im.src=url; }
+function sample(kind){ const w=240,h=160; const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const c=cv.getContext('2d'); c.fillStyle='#000'; c.fillRect(0,0,w,h);
+  if(kind==='dots'){ const g=c.createRadialGradient(0,0,0,0,0,11); g.addColorStop(0,'#fff'); g.addColorStop(1,'#000');
+    for(let j=0;j<6;j++) for(let i=0;i<12;i++){ c.save(); c.translate((i+(j%2)*0.5)*w/12+w/24,j*h/6+h/12); c.fillStyle=g; c.beginPath(); c.arc(0,0,11,0,6.283); c.fill(); c.restore(); } }
+  else { const im=c.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const v=0.5+0.5*Math.sin((x*2*Math.PI/w)*6+(y/h)*2*Math.PI*2); const k=(y*w+x)*4; im.data[k]=im.data[k+1]=im.data[k+2]=Math.round(v*255); im.data[k+3]=255; } c.putImageData(im,0,0); }
+  setImage(kind==='dots'?'サンプル（ドット）':'サンプル（斜めの波）',cv); }
+function mount(container,cb){ if(!container) return; onChange=cb||onChange; css(); container.innerHTML=html(); writeUI();
+  for(const id of Object.keys(IDS)){ const el=$(id); const ev=(el.type==='range')?'input':'change';
+    el.addEventListener(ev,()=>{ const before=[S.blur,S.inv]; readUI(); writeUI(); if(before[0]!==S.blur||before[1]!==S.inv){ process(); preview(); } onChange(); }); }
+  $('bmpLoad').onclick=()=>$('bmpIn').click();
+  $('bmpIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>loadURL(f.name,r.result,()=>{ if(!S.on){ S.on=true; writeUI(); } onChange(); }); r.readAsDataURL(f); });
+  $('bmpSampleDots').onclick=()=>{ sample('dots'); if(!S.on){ S.on=true; writeUI(); } onChange(); };
+  $('bmpSampleWave').onclick=()=>{ sample('wave'); if(!S.on){ S.on=true; writeUI(); } onChange(); };
+  preview(); }
+// displacement (mm, + = outward) for a wall point at angle theta (rad, around the section centre) and height z (mm)
+function disp(theta,z,zWall,H){ if(!S.on||!proc||!S.amp) return 0; const zA=zWall+(H-zWall)*S.z0/100, zB=zWall+(H-zWall)*S.z1/100; if(z<zA||z>zB||zB<=zA) return 0;
+  const {w,h}=src; let u=((theta-S.rot*Math.PI/180)/(2*Math.PI))%1; if(u<0) u+=1; u=(u*S.ru)%1; let v=((z-zA)/(zB-zA))*S.rv; v=v>=S.rv? 0.999999 : v%1;
+  const fx=u*w-0.5, fy=(1-v)*h-0.5; const x0=Math.floor(fx), y0=Math.max(0,Math.min(h-1,Math.floor(fy))), y1=Math.min(h-1,y0+1); const tx=fx-x0, ty=Math.max(0,Math.min(1,fy-y0));
+  const X=k=>((k%w)+w)%w; const a=proc[y0*w+X(x0)], b=proc[y0*w+X(x0+1)], c=proc[y1*w+X(x0)], d=proc[y1*w+X(x0+1)];
+  const g=(a*(1-tx)+b*tx)*(1-ty)+(c*(1-tx)+d*tx)*ty;
+  return S.mode==='in'? -S.amp*g : S.mode==='mid'? S.amp*(2*g-1) : S.amp*g; }
+// for undo snapshots (image by name only) and settings files (image included)
+function params(){ return {...S, img: src? src.name : null}; }
+function setParams(o){ if(!o) return; for(const k of Object.keys(DEF)) if(k in o) S[k]=o[k]; writeUI(); process(); preview(); }
+function state(){ return {params:{...S}, image: src? {name:src.name,url:src.url} : null}; }
+function setState(o,cb){ if(!o){ Object.assign(S,DEF); src=null; writeUI(); process(); preview(); cb&&cb(); return; } Object.assign(S,DEF,o.params||{}); writeUI();
+  if(o.image&&o.image.url) loadURL(o.image.name||'image',o.image.url,cb); else { src=null; process(); preview(); cb&&cb(); } }
+function describe(){ return S.on&&src? `bump ${src.name} ${S.mode} amp ${S.amp}mm rep ${S.ru}x${S.rv} rot ${S.rot} range ${S.z0}-${S.z1}% blur ${S.blur}${S.inv?' inv':''}` : 'bump off'; }
+return {mount,disp,params,setParams,state,setState,describe,defaults:()=>({...DEF})};
 })();
 </script>
 <script>/* ---- inlined from shared/stl.js ---- */
@@ -714,6 +794,7 @@ const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cXY=new Curve($('curveXY'),0,1,[1,1,1,1,1],()=>recompute());
 const cZ=new Curve($('curveZ'),0,1,[1,1,1,1,1],()=>recompute());
+if(window.ClayBump) ClayBump.mount($('bumpSec'),()=>recompute()); // shared/bump.js: image bump section
 const cM=new Curve($('curveM'),0,1,[0,0.25,0.5,0.75,1],()=>reslice());
 
 /* ---------- slicing ---------- */
@@ -961,8 +1042,8 @@ function recompute(){ if(!contours) return; readP();
   // ---- bottom fill: concentric spiral (continuous, no stops) ----
   const nB=Math.min(Math.max(0,Math.round(P.bottomN)),L); const pitch=P.lineW*P.fillPitch; let fillRings=0, fillConcave=0, fillZig=0, fillTravel=0;
   const d2r0=Math.PI/180;
-  const wallDxy=(th,z)=>{ if(!P.onXY) return 0; const h=z/H; const g=P.modFree>0? Math.min(1,Math.max(0,(z-(nB+1)*lh-P.modFree)/3)) : 1; const gs=g*g*(3-2*g);
-    let v=P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r0*z,th,h,P.xyN,P.seed)*gs; return Math.max(-P.xyMax,Math.min(P.xyMax,v)); };
+  const wallDxy=(th,z)=>{ const h=z/H; const g=P.modFree>0? Math.min(1,Math.max(0,(z-(nB+1)*lh-P.modFree)/3)) : 1; const gs=g*g*(3-2*g);
+    let v=P.onXY? P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r0*z,th,h,P.xyN,P.seed)*gs : 0; return Math.max(-P.xyMax,Math.min(P.xyMax,v))+(window.ClayBump? ClayBump.disp(th,z,(nB+1)*lh,H)*gs : 0); };
   let bottomWaveMax=0;
   const fb=ClayFill.bottom({contours,N,nB,lh,H,spiral,pitch,ext:Math.max(0,Math.round(P.bottomExt)),bottomShape:P.bottomShape,fillMode:P.fillMode,wallDxy,pts}); // shared/fill.js
   lastC=fb.lastC; fillRings=fb.fillRings; fillConcave=fb.fillConcave; fillZig=fb.fillZig; fillTravel=fb.fillTravel; bottomWaveMax=fb.bottomWaveMax;
@@ -992,6 +1073,7 @@ function recompute(){ if(!contours) return; readP();
     p.f = baseOf(p)*v/(P.wMode==='flow' ? m : 1);
     let dxy=P.onXY ? P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r*z,th,h,P.xyN,P.seed) : 0;
     dxy*=gs; if(Math.abs(dxy)>P.xyMax){ clampXY++; dxy=Math.sign(dxy)*P.xyMax; }
+    if(window.ClayBump) dxy+=ClayBump.disp(th,z,zWall,H)*gs; // image bump (outside the XY guard)
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
     p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false; }
@@ -1109,6 +1191,7 @@ if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='6
 /* ---------- G-code ---------- */
 function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
   const out=[]; out.push(`; ClayMorph Lab  ${new Date().toISOString().slice(0,16)}`, `; morph bottom ${P.bKind} n${P.bN} a${P.bA} r${P.bR} rot${P.bRot} D${P.dB}${P.bKind==='svg'&&svgShapes.b?' '+svgShapes.b.name:''} -> top ${P.tKind} n${P.tN} a${P.tA} r${P.tR} rot${P.tRot} D${P.dT}${P.tKind==='svg'&&svgShapes.t?' '+svgShapes.t.name:''}`, `; height ${P.hgt}mm  twist ${P.twist}deg  corr ${morphInfo.mode}  profile L ${prof.L.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')} R ${prof.R.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')}  shape curve ${cM.y.map(v=>v.toFixed(2)).join(',')}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}  Z ${P.onZ?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | Z amp ${P.zAmp} n ${P.zN} tw ${P.zTw} ${P.zWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
+  if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
   const bf=Math.round((P.onV?P.vFirst:P.baseF)*60); // skirt runs on the first layer
   if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);
@@ -1155,12 +1238,13 @@ btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=
 // one snapshot = every control, the five curves, the side profile, the loaded SVGs and the 🔗 state
 const CURVES={F:cF,V:cV,XY:cXY,Z:cZ,M:cM};
 function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; }
-  return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), prof:{L:prof.L.map(q=>({...q})),R:prof.R.map(q=>({...q}))}, sym:$('symProf').checked, pair:$('pairH').checked, svg:{b:svgShapes.b,t:svgShapes.t}, lock:$('lockProp').getAttribute('aria-pressed')}; }
-const snapKey=o=>JSON.stringify([o.v,o.c,o.prof,o.sym,o.pair,o.svg.b&&o.svg.b.id,o.svg.t&&o.svg.t.id,o.lock]);
+  return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), b:window.ClayBump?ClayBump.params():null, prof:{L:prof.L.map(q=>({...q})),R:prof.R.map(q=>({...q}))}, sym:$('symProf').checked, pair:$('pairH').checked, svg:{b:svgShapes.b,t:svgShapes.t}, lock:$('lockProp').getAttribute('aria-pressed')}; }
+const snapKey=o=>JSON.stringify([o.v,o.c,o.b,o.prof,o.sym,o.pair,o.svg.b&&o.svg.b.id,o.svg.t&&o.svg.t.id,o.lock]);
 function applySnap(o){ for(const k of ids){ const el=$(k); if(el.type==='checkbox') el.checked=!!o.v[k]; else el.value=o.v[k]; fmt2(k); }
   for(const [k,c] of Object.entries(CURVES)) c.set(o.c[k]); prof={L:o.prof.L.map(q=>({...q})),R:o.prof.R.map(q=>({...q}))}; $('symProf').checked=!!o.sym; $('pairH').checked=o.pair!==false; window.__pairUI&&window.__pairUI(); profSel=null;
   for(const sd of ['b','t']){ svgShapes[sd]=o.svg[sd]; $(sd+'SvgName').textContent= svgShapes[sd]? svgShapes[sd].name : ''; }
   const lb=$('lockProp'); const on=o.lock==='true'; lb.setAttribute('aria-pressed',on?'true':'false'); lb.textContent=on?'🔗':'⛓️‍💥';
+  if(o.b&&window.ClayBump) ClayBump.setParams(o.b);
   if(window.ClayPrinter) ClayPrinter.reapply();
   profLastH=+$('hgt').value; kindUI(); dim(); reslice(); }
 const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
@@ -1177,14 +1261,14 @@ $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
 let defaults=null; // snapshot right after start-up
 const TKEYS=['gStart','gEnd'];
 function settingsObj(){ const o=snap(); const svg={}; for(const sd of ['b','t']){ const v=o.svg[sd]; svg[sd]= v? {name:v.name,loop:v.loop.map(p=>[p[0],p[1]])} : null; }
-  delete o.svg; return {app:'ClayMorph Lab',version:1,saved:new Date().toISOString(),settings:o,svg,text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null}; }
+  delete o.svg; return {app:'ClayMorph Lab',version:1,saved:new Date().toISOString(),settings:o,svg,text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),bump:window.ClayBump?ClayBump.state():null,machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null}; }
 $('btnSetSave').onclick=async()=>{ const r=await ClaySettings.saveText(ClaySettings.safe($('fname').value)+'_settings','json',JSON.stringify(settingsObj(),null,1)); setSetMsg(r.msg,r.ok?'ok':'err'); };
 $('btnSetLoad').onclick=()=>$('setIn').click();
 $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   ClaySettings.readFile(f,'ClayMorph Lab',(o,err)=>{ if(err){ setSetMsg(err,'err'); return; }
     const svg={}; for(const sd of ['b','t']){ const v=o.svg&&o.svg[sd]; svg[sd]= v&&v.loop&&v.loop.length>2 ? {name:v.name||'saved.svg',loop:v.loop,id:++svgSeq} : null; }
     for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
-    record(); applying=true; applySnap(Object.assign({},o.settings,{svg})); applying=false; record();
+    record(); applying=true; applySnap(Object.assign({},o.settings,{svg})); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record();
     setSetMsg(`${f.name} を読み込みました${svg.b||svg.t?'（SVG も復元）':''}`,'ok'); }); });
 ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(Object.assign({},defaults,{svg:{b:svgShapes.b,t:svgShapes.t}})); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
 // shortcuts: leave text areas and the file-name box to the browser's own undo
