@@ -288,10 +288,14 @@ M82 ;absolute extrusion mode</textarea>
   </div>
 </div>
 
+<script src="../shared/nav.js"></script>
+<script src="../shared/printer.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
 "use strict";
+// machine profile (shared/printer.js): fills and locks the machine inputs; falls back to the page's own values if the file is missing
+const MP=Object.assign({zF:40,retract:1,retractF:30,hop:1,skirtOff:6},(window.ClayPrinter&&ClayPrinter.PROFILE)||{}); if(window.ClayPrinter) ClayPrinter.apply();
 const $=id=>document.getElementById(id);
 const ids=['pxUnit','scale','sx','sy','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','wallW','frameWm','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
 const P={};
@@ -670,16 +674,16 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     `; svg units ${src.unitNote} scale ${P.scale}% x${P.sx}% y${P.sy}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   out.push($('gStart').value.trim()); let E=0;
-  if(P.skirt){ const o=6, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
-    out.push(';TYPE:SKIRT', `G1 F2400 Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F2400 Z${f3(lh)}`, `G1 F1800 E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
+  if(P.skirt){ const o=MP.skirtOff, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
+    out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
     for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
   let lastF=-1,lastL=-1,lastK='',gl=false;
   for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null;
-    if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F1800 E${f3(E)} ;unretract`); gl=false; lastF=-1; }
+    if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); gl=false; lastF=-1; }
     if(r.layer!==lastL){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastL=r.layer; }
-    if(r.travel){ out.push(`G1 F1800 E${f3(E-1)} ;retract`); out.push(`G1 F2400 Z${f3(Math.max(q?q.Z:0,r.Z)+P.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F2400 Z${f3(r.Z)}`); E+=P.prime; out.push(`G1 F1800 E${f3(E)} ;unretract${P.prime?' +prime':''}`); lastF=-1; lastK=''; continue; }
-    if(r.nd){ out.push(`G1 F2400 X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)}`); lastF=2400; continue; }
-    if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F1800 E${f3(E-1)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
+    if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q?q.Z:0,r.Z)+P.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); E+=P.prime; out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract${P.prime?' +prime':''}`); lastF=-1; lastK=''; continue; }
+    if(r.nd){ out.push(`G1 F${Math.round(MP.zF*60)} X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)}`); lastF=Math.round(MP.zF*60); continue; }
+    if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
     const tk=r.kind==='join'?'JOIN':r.kind==='frame'?'FRAME':r.kind==='fill'?'FILL':'WALL'; if(tk!==lastK){ out.push(`;TYPE:${tk}`); lastK=tk; }
     const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
@@ -720,6 +724,7 @@ const TKEYS=['gStart','gEnd'];
 function snap(){ const o={}; for(const k of SKEYS){ const el=$(k); if(el) o[k]= el.type==='checkbox'? el.checked : el.value; } return o; }
 function applySnap(o,withText){ for(const k of SKEYS){ if(!(k in o)) continue; const el=$(k); if(!el) continue; if(el.type==='checkbox') el.checked=!!o[k]; else el.value=o[k]; }
   if(withText) for(const k of TKEYS) if(typeof o[k]==='string') $(k).value=o[k];
+  if(window.ClayPrinter) ClayPrinter.reapply();
   frameUI(); clearTimeout(timer); needParse=false; if(svgText) loadText(svgText,svgName,false); }
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 let defaults=null; const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
