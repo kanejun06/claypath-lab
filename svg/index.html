@@ -519,7 +519,7 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   $('sJoin').textContent=`${p.wl.lj}（枠上 ${p.wl.lfr}）／${p.wl.lhop}`;
   $('sRot').textContent= P.rot? `${p.rot.degMin.toFixed(1)}〜${p.rot.degMax.toFixed(1)}°（1層 ${p.rot.maxStep.toFixed(1)}°）` : 'なし';
   $('sLen').textContent=`${(p.lenP/1000).toFixed(2)} m`; $('sTrav').textContent=`${(p.lenT/1000).toFixed(2)} m（${p.hops} 回）`;
-  $('hud').textContent=`${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
+  $('hud').textContent=`${fmtTime(p.time)} · ${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
   const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
   { const ww=wWall(), wf=wFrame(), lh=P.layerH; $('wNote').textContent=`壁の線 ${ww.toFixed(2)} mm・枠 ${wf.toFixed(2)} mm（線幅 ${P.lineW} mm に対して）`;
     const mx=Math.max(ww,wf)*(P.useSW?P.wMax:1), mn=Math.min(ww,wf)*(P.useSW?P.wMin:1);
@@ -685,7 +685,7 @@ let timer=0, needParse=false; const reparse=new Set(['pxUnit','scale','sx','sy',
 for(const id of ids){ const el=$(id); el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ if(reparse.has(id)) needParse=true; clearTimeout(timer); timer=setTimeout(()=>{ if(!svgText) return; const np=needParse; needParse=false; if(np) loadText(svgText,svgName,false); else build(); },150); }); }
 window.addEventListener('resize',render);
 const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',applyTheme); new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
+const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); btnInfo.textContent=on?'推定・判定を隠す':'推定・判定を表示'; try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
 btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cll_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
 if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
 applyTheme(); useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true);
