@@ -163,6 +163,8 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="row"><label for="bottomShape">底面の外形</label><select id="bottomShape"><option value="wall">壁の1層目に合わせる</option><option value="stl">STLの輪郭のまま</option></select></div>
       <div class="row"><label for="bottomExt">底面を外へ広げる</label><input id="bottomExt" type="number" step="1" min="0" max="4" value="0"><span class="unit">周</span></div>
       <div class="row"><label for="modFree">壁の下は変調なし</label><input id="modFree" type="number" step="0.5" min="0" max="50" value="0"><span class="unit">mm</span></div>
+      <div class="row"><label class="toggle"><input id="slopeOn" type="checkbox">傾斜補正（斜めの壁ほど太く）</label><label for="slopeMax" style="flex:0 0 auto">上限</label><input id="slopeMax" type="number" step="0.05" min="1" max="2" value="1.4"><span class="unit">倍</span></div>
+      <div class="note">斜めになった壁は、同じ線幅でも壁に垂直な厚みが薄くなる（傾き θ で 線幅×cosθ）。傾斜補正は、傾いた所ほど押出を増やして厚みを線幅にそろえる（1/cosθ 倍、上限まで）。広がる器・傾けた器の補強に。</div>
       <div class="row"><label for="joinMode">らせんへのつなぎ</label><select id="joinMode"><option value="ramp">傾斜の1周を足す</option><option value="fill">1周目を押出で埋める</option><option value="none">なし（v12まで）</option></select></div>
       <div class="note">らせんの1周目は平らな底面（または台）の上で1周かけて層高ぶん浮いていく。「傾斜の1周」は底面の上に高さ0.2→1層ぶんの坂を1周足し、押出量も高さに合わせる。「押出で埋める」は1周目の押出量を1→2倍に増やしてすき間を埋める。</div>
       <div class="note">「外へ広げる」は底面だけを線幅×周数ぶん輪郭の外に出す（壁の座り）。「変調なし」は壁の下端からその高さまで太さ・速度・XY・Zの変調を0にし、その上3mmでなめらかに立ち上げる。</div>
@@ -316,6 +318,7 @@ M82 ;absolute extrusion mode</textarea>
 <script src="shared/printer.js"></script>
 <script src="shared/bump.js"></script>
 <script src="shared/fill.js"></script>
+<script src="shared/wall.js"></script>
 <script src="shared/settings.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -422,7 +425,7 @@ function wave(kind,ph,theta,h,n,seed){ // ph = n*theta + twist ; returns -1..1
 /* ---------- state ---------- */
 let tris=null, bb=null, contours=null, path=null; // path: {x,y,z,f,w,bad,...}
 const P = {};
-const ids=['layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','onZ','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','zAmp','zN','zTw','zWave','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
+const ids=['slopeOn','slopeMax','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','onZ','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','zAmp','zN','zTw','zWave','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
@@ -482,12 +485,14 @@ function recompute(){ if(!contours) return; readP();
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
     p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false; }
+  // slope compensation (shared/wall.js): widen the bead where the designed wall leans
+  const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
   // overhang check vs point one turn below
   const stride=spiral?N:N+1; const tanLim=Math.tan(P.ovh*d2r); let ovh=0;
   for(let i=stride;i<pts.length;i++){ const p=pts[i],q=pts[i-stride]; if(p.bottom||q.bottom) continue; const dh=Math.hypot(p.X-q.X,p.Y-q.Y), dz=Math.max(0.05,p.Z-q.Z); if(dh/dz>tanLim){ p.bad=true; ovh++; } }
   // stats
   let len=0,time=0,fmn=1e9,fmx=0,mmn=1e9,mmx=0,rmn=1e9,rmx=0; for(let i=1;i<pts.length;i++){ const p=pts[i],q=pts[i-1]; const s=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z); if(p.travel){ time+=s/P.travelF; continue; } len+=s; time+=s/p.f; if(p.f<fmn)fmn=p.f; if(p.f>fmx)fmx=p.f; if(p.m<mmn)mmn=p.m; if(p.m>mmx)mmx=p.m; if(p.layer>0 && !p.join){ const r=p.f*p.m/P.baseF; if(r<rmn)rmn=r; if(r>rmx)rmx=r; } } if(rmx===0){ rmn=rmx=1; }
-  path={pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,clampZ,ovh,missing:valid.filter(v=>!v).length};
+  path={slopeSt,pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,clampZ,ovh,missing:valid.filter(v=>!v).length};
   renderStats(); buildMesh(); }
 
 function fmtTime(s){ const m=Math.round(s/60); return m>=60? `${Math.floor(m/60)}時間${String(m%60).padStart(2,'0')}分` : `${m}分`; }
@@ -507,6 +512,7 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(p.nB>0 && p.fillZig) add(p.fillTravel>p.nB*6?'mid':'', `底面 ${p.nB} 層のうち ${p.fillZig} 層を「外周＋往復」で充填（同心らせんでは中が埋まらない形のため。線の向きは層ごとに90°回転、持ち上げ移動 ${p.fillTravel} 回）${p.fillZig<p.nB?'。残りは同心らせん':''}`);
   if(p.nB>0 && p.fillZig<p.nB) add('', `底面 ${p.nB-p.fillZig} 層を同心らせんで充填（最大 ${p.fillRings} 周＋中心へ1周${p.bottomWaveMax>0.05?`、外周は壁の波 ±${p.bottomWaveMax.toFixed(2)}mm`:''}${P.bottomExt>0?`＋外へ ${Math.round(P.bottomExt)} 周`:''}）`);
   if(P.spiral) add(p.join==='none'?'mid':'', p.join==='ramp'?'らせんへのつなぎ：底面の上に傾斜の1周（高さ0.2→1層、押出も比例）':p.join==='fill'?`らせんへのつなぎ：1周目の押出を1→2倍${P.joinMode==='ramp'?'（底面なしのため傾斜の代わり）':''}`:'らせんの1周目が底面から最大1層ぶん浮く（つなぎなし）');
+  if(P.slopeOn) add('', p.slopeSt.n? `傾斜補正：${p.slopeSt.n.toLocaleString()} 点を太く（最大 ×${p.slopeSt.kmax.toFixed(2)}${p.slopeSt.kmax>=P.slopeMax-1e-3?'、上限で頭打ち':''}）` : '傾斜補正：傾いた壁なし');
   if(P.modFree>0) add('', `壁の下 ${P.modFree} mm は変調なし（その上 3 mm で立ち上げ）`);
   if(p.nB>0 && p.fillConcave && p.fillZig<p.nB) add('mid', `輪郭に凹みがあり、充填の内側で経路が重なる可能性（凹点 ${Math.round(p.fillConcave/p.nB)}）`);
   if(contours.multi) add('mid', `${contours.multi} 層で輪郭が複数あり、最大のものだけ使用`);
@@ -593,6 +599,7 @@ if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='6
 function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
   const out=[]; out.push(`; ClayPath Lab  ${new Date().toISOString().slice(0,16)}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}  Z ${P.onZ?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | Z amp ${P.zAmp} n ${P.zN} tw ${P.zTw} ${P.zWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
+  if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
   out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
   const bf=Math.round((P.onV?P.vFirst:P.baseF)*60); // skirt runs on the first layer
   if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);
