@@ -318,6 +318,7 @@ M82 ;absolute extrusion mode</textarea>
 
 <script src="shared/nav.js"></script>
 <script src="shared/printer.js"></script>
+<script src="shared/templates.js"></script>
 <script src="shared/bump.js"></script>
 <script src="shared/rim.js"></script>
 <script src="shared/fill.js"></script>
@@ -490,7 +491,7 @@ function recompute(){ if(!contours) return; readP();
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
     p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false;
-    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.m*=r.k; p.hh=(p.hh||1)*r.k; if(P.wMode==='flow') p.f/=r.k; } } }
+    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.em=(p.em||1)*r.k; p.hh=(p.hh||1)*r.k; /* thicker layer, same bead width: scale E only */ } } }
   // slope compensation (shared/wall.js): widen the bead where the designed wall leans
   const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
   // overhang check vs point one turn below
@@ -691,6 +692,8 @@ $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.va
     for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
     applySnap(o.settings); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record(); setSetMsg(`${f.name} を読み込みました${stlMsg}`,'ok'); }); });
 let defaults=snap(); hist.cur=null; record();
+if(window.ClayTemplates) ClayTemplates.mount($('btnSetReset'),'path',t=>{ const base=JSON.parse(JSON.stringify(defaults)); Object.assign(base.v,t.v||{}); if(t.c) Object.assign(base.c,t.c); base.b=Object.assign({},defaults.b||{},t.b||{}); base.r=Object.assign({},defaults.r||{},t.r||{});
+  record(); applying=true; applySnap(base); if(t.bumpSample&&window.ClayBump) ClayBump.sampleImage(t.bumpSample); applying=false; recompute(); record(); setSetMsg(`作例「${t.name}」を開きました（${t.desc}。⌘Z で元に戻せます）`,'ok'); });
 ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(defaults); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
 // shortcuts: leave text areas and the file-name box to the browser's own undo
 document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));

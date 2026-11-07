@@ -371,6 +371,7 @@ M82 ;absolute extrusion mode</textarea>
 
 <script src="../shared/nav.js"></script>
 <script src="../shared/printer.js"></script>
+<script src="../shared/templates.js"></script>
 <script src="../shared/bump.js"></script>
 <script src="../shared/rim.js"></script>
 <script src="../shared/stl.js"></script>
@@ -772,7 +773,7 @@ function recompute(){ if(!contours) return; readP();
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
     p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false;
-    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.m*=r.k; p.hh=(p.hh||1)*r.k; if(P.wMode==='flow') p.f/=r.k; } } }
+    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.em=(p.em||1)*r.k; p.hh=(p.hh||1)*r.k; /* thicker layer, same bead width: scale E only */ } } }
   // slope compensation (shared/wall.js): widen the bead where the designed wall leans
   const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
   // overhang check vs point one turn below
@@ -983,6 +984,9 @@ document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod
   else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
 $('fname').value='claymorph';
 reslice(); applyTheme(); sph.th=0.9; sph.ph=1.38; fit(); record(); defaults=snap();
+if(window.ClayTemplates) ClayTemplates.mount($('btnSetReset'),'morph',t=>{ const cp=o=>JSON.parse(JSON.stringify(o)); const base=Object.assign({},defaults,{v:{...defaults.v,...(t.v||{})}, c:{...defaults.c,...(t.c||{})}, b:{...(defaults.b||{}),...(t.b||{})}, r:{...(defaults.r||{}),...(t.r||{})},
+    prof:cp(t.prof||defaults.prof), sym:t.sym!==undefined?t.sym:defaults.sym, pair:t.pair!==undefined?t.pair:defaults.pair, svg:{b:svgShapes.b,t:svgShapes.t}});
+  record(); applying=true; applySnap(base); if(t.bumpSample&&window.ClayBump) ClayBump.sampleImage(t.bumpSample); applying=false; recompute(); record(); setSetMsg(`作例「${t.name}」を開きました（${t.desc}。⌘Z で元に戻せます）`,'ok'); });
 window.ClayMorph={profView, profile:()=>prof, sideX}; // for scripted checks
 })();
 </script>

@@ -411,6 +411,51 @@ function reapply(){ if(!teacher) setValues(); }
 window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
 })();
 </script>
+<script>/* ---- inlined from shared/templates.js ---- */
+/* ClayLine Lab / ClayPath Lab / ClayMorph Lab — example settings ("作例")
+ * Each template is a set of changes from the page's start-up settings, applied in one step (undo with ⌘Z).
+ * Machine values are never part of a template. They are starting points, not machine-tested recipes: check the
+ * judgement panel and print a small test first. To add one, copy an entry and change the values; the keys are the
+ * input ids of each page (and prof / c / b / r as in the page's settings file).
+ */
+window.ClayTemplates=(function(){
+"use strict";
+// symmetric side profile from [h(0..1), diameter mm] pairs
+const sym=list=>{ const side=list.map(([h,D])=>({h,x:D/2})); return {L:side.map(p=>({...p})),R:side}; };
+const T={
+  line:[
+    {name:'波線のトレイ（基本）', desc:'サンプルの波線を四角い枠の中に積む', s:{}},
+    {name:'交互の格子（0°と90°）', desc:'層ごとに線の向きを90°入れ替えて、格子状に積む', s:{rot:90,rotMode:'alt',height:12}},
+    {name:'少しずつ回る格子', desc:'1層ごとに1°ずつ回して、ねじれた模様にする', s:{rot:1,rotMode:'cont',height:20}},
+    {name:'丸い皿', desc:'丸い枠（直径100mm）で低い皿にする', s:{frameMode:'circle',frameDia:100,height:10}},
+  ],
+  path:[
+    {name:'ねじれたうねり（開いたときの例）', desc:'輪郭のうねりと太さの揺れを、ねじりながら重ねる', v:{}},
+    {name:'太さの縞', desc:'周方向に押出量だけを変えて、縦の縞にする', v:{xyAmp:0,fAmp:0.2,fN:12,fTw:0}},
+    {name:'波打つ層', desc:'層を上下に波打たせて、横のさざ波にする', v:{xyAmp:0,fAmp:0,zAmp:0.3,zN:6,zTw:2}},
+    {name:'ドット模様（画像のバンプ）', desc:'サンプルのドット画像を巻き付ける（1周の点数240）', v:{xyAmp:0,fAmp:0,segs:240}, b:{on:true,amp:1,blur:2,fadeLo:5,fadeHi:5}, bumpSample:'dots'},
+    {name:'斜めの口', desc:'ゆるいうねりに、片側が高い口を合わせる', v:{xyAmp:0.8,xyN:8,xyTw:0,fAmp:0}, r:{on:true,kind:'tilt',amp:8}},
+  ],
+  morph:[
+    {name:'花びらの花器', desc:'丸い底から、上に開く6枚の花びらへ', v:{tKind:'petal',tN:6,tA:0.35,dB:70,dT:110,hgt:90,slopeOn:true}},
+    {name:'ねじれた星のカップ', desc:'5つの角の星を36°ねじる。上下で星の向きをずらす', v:{bKind:'star',bN:5,bA:0.6,bR:2,tKind:'star',tN:5,tA:0.6,tR:2,tRot:36,dB:75,dT:85,hgt:85,twist:36,slopeOn:true}, prof:sym([[0,75],[0.5,78],[1,85]])},
+    {name:'注ぎ口のピッチャー', desc:'胴がふくらみ、口の一か所が低く外へ張り出す', v:{bKind:'circle',tKind:'circle',dB:70,dT:80,hgt:110,slopeOn:true}, prof:sym([[0,70],[0.35,92],[0.75,78],[1,80]]), r:{on:true,kind:'spout',amp:-10,width:60,out:2.5,dir:0}},
+    {name:'傾いた一輪挿し', desc:'左右非対称の輪郭で、口が片側へ寄る', v:{bKind:'circle',tKind:'ellipse',tA:0.7,dB:50,dT:40,hgt:120,slopeOn:true},
+      prof:{L:[{h:0,x:25},{h:0.3,x:24},{h:0.65,x:17},{h:1,x:12}],R:[{h:0,x:25},{h:0.3,x:29},{h:0.65,x:30},{h:1,x:28}]}, sym:false, pair:true},
+    {name:'波打つ口のボウル', desc:'広がる低い器の口を、ゆるく4回波打たせる', v:{bKind:'circle',tKind:'petal',tN:8,tA:0.12,dB:80,dT:115,hgt:65,slopeOn:true}, prof:sym([[0,80],[0.45,100],[1,115]]), r:{on:true,kind:'wave',amp:4,n:4}},
+    {name:'ドット模様のタンブラー', desc:'まっすぐな筒にドット画像を巻き付ける（1周の点数360）', v:{bKind:'circle',tKind:'circle',dB:70,dT:78,hgt:100,segs:360}, prof:sym([[0,70],[0.5,74],[1,78]]), b:{on:true,amp:1,blur:2,fadeLo:6,fadeHi:6}, bumpSample:'dots'},
+  ],
+};
+function list(tool){ return T[tool]||[]; }
+// a "作例" menu; onPick(template) applies it
+function mount(after,tool,onPick){ if(!after||!list(tool).length) return; const sel=document.createElement('select'); sel.className='tplsel'; sel.title='作例を開く（今の設定は ⌘Z で戻せる）';
+  sel.innerHTML='<option value="">作例を開く…</option>'+list(tool).map((t,i)=>`<option value="${i}" title="${t.desc}">${t.name}</option>`).join('');
+  sel.addEventListener('change',()=>{ const t=list(tool)[+sel.value]; sel.value=''; if(t) onPick(t); });
+  const st=document.createElement('style'); st.textContent='.tplsel{font:inherit;font-size:11px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--fg);max-width:9em}'; document.head.appendChild(st);
+  after.after(sel); }
+return {list,mount};
+})();
+</script>
 <script>/* ---- inlined from shared/bump.js ---- */
 /* ClayPath Lab / ClayMorph Lab — image bump: a black-and-white image wrapped around the wall
  * The image is wrapped once around the vessel (or repeated), and its brightness pushes the wall out or in (XY,
@@ -421,12 +466,12 @@ window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
 window.ClayBump=(function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const DEF={on:false, amp:1.0, mode:'out', ru:1, rv:1, rot:0, z0:0, z1:100, blur:1, inv:false};
+const DEF={on:false, amp:1.0, mode:'out', ru:1, rv:1, rot:0, z0:0, z1:100, fadeLo:0, fadeHi:0, blur:1, inv:false};
 const S={...DEF};
 let src=null;   // {name, url(dataURL of the downscaled image), w, h, g:Float32Array (0..1 brightness)}
 let proc=null;  // processed brightness (blur + invert), same size
 let onChange=()=>{};
-const IDS={bmpOn:'on',bmpAmp:'amp',bmpMode:'mode',bmpRu:'ru',bmpRv:'rv',bmpRot:'rot',bmpZ0:'z0',bmpZ1:'z1',bmpBlur:'blur',bmpInv:'inv'};
+const IDS={bmpOn:'on',bmpAmp:'amp',bmpMode:'mode',bmpRu:'ru',bmpRv:'rv',bmpRot:'rot',bmpZ0:'z0',bmpZ1:'z1',bmpFadeLo:'fadeLo',bmpFadeHi:'fadeHi',bmpBlur:'blur',bmpInv:'inv'};
 function html(){ return `
   <h2><label class="toggle"><input id="bmpOn" type="checkbox">画像のバンプ（白黒の画像で凹凸）</label></h2>
   <div class="row keep" style="flex-wrap:wrap"><button id="bmpLoad" type="button" class="sm">画像を読み込む</button><input id="bmpIn" type="file" accept="image/*" hidden>
@@ -439,9 +484,10 @@ function html(){ return `
   <div class="row"><label for="bmpRv">高さ方向の繰り返し</label><input id="bmpRv" type="range" min="1" max="12" step="1" value="1"><span class="val" id="bmpRvV">1</span></div>
   <div class="row"><label for="bmpRot">回転（貼る位置）</label><input id="bmpRot" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="bmpRotV">0</span><span class="unit">°</span></div>
   <div class="row"><label for="bmpZ0">貼る範囲（壁の下端〜口を0〜100）</label><input id="bmpZ0" type="number" step="5" min="0" max="95" value="0"><span class="unit">〜</span><input id="bmpZ1" type="number" step="5" min="5" max="100" value="100"><span class="unit">%</span></div>
+  <div class="row"><label for="bmpFadeLo">フェード（下端／上端）</label><input id="bmpFadeLo" type="number" step="1" min="0" max="200" value="0"><span class="unit">／</span><input id="bmpFadeHi" type="number" step="1" min="0" max="200" value="0"><span class="unit">mm</span></div>
   <div class="row"><label for="bmpBlur">ぼかし</label><input id="bmpBlur" type="range" min="0" max="8" step="1" value="1"><span class="val" id="bmpBlurV">1</span><span class="unit">px</span></div>
   <div class="row"><label class="toggle"><input id="bmpInv" type="checkbox">白黒を反転</label></div>
-  <div class="note">画像の左右が器の一周（左端＝0°、右回り）、上が口の側。細かさは「1周の点数」（周方向）と層高 0.9 mm（高さ方向）で決まるので、細かい模様は点数を増やすか、ぼかして大きな形にする。深さが大きいとオーバーハング警告が出やすい。「壁の下は変調なし」もかかる。</div>`; }
+  <div class="note">画像の左右が器の一周（左端＝0°、右回り）、上が口の側。細かさは「1周の点数」（周方向）と層高 0.9 mm（高さ方向）で決まるので、細かい模様は点数を増やすか、ぼかして大きな形にする。深さが大きいとオーバーハング警告が出やすい。フェードは貼る範囲の下端・上端からその長さで深さを 0 からなめらかに立ち上げる（模様の切れ目が段差にならない）。「壁の下は変調なし」もかかる。</div>`; }
 function css(){ const st=document.createElement('style'); st.textContent='.bmpprev{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:#000;image-rendering:pixelated;margin:4px 0}'; document.head.appendChild(st); }
 function readUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; S[k]= el.type==='checkbox'? el.checked : el.tagName==='SELECT'? el.value : +el.value; } if(S.z1<=S.z0) S.z1=Math.min(100,S.z0+5); }
 function writeUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!S[k]; else el.value=S[k]; const v=$(id+'V'); if(v) v.textContent= k==='amp'? (+S[k]).toFixed(2) : String(S[k]); } }
@@ -474,19 +520,20 @@ function mount(container,cb){ if(!container) return; onChange=cb||onChange; css(
   preview(); }
 // displacement (mm, + = outward) for a wall point at angle theta (rad, around the section centre) and height z (mm)
 function disp(theta,z,zWall,H){ if(!S.on||!proc||!S.amp) return 0; const zA=zWall+(H-zWall)*S.z0/100, zB=zWall+(H-zWall)*S.z1/100; if(z<zA||z>zB||zB<=zA) return 0;
+  let wf=1; const sm=t=>{ t=Math.min(1,Math.max(0,t)); return t*t*(3-2*t); }; if(S.fadeLo>0) wf*=sm((z-zA)/S.fadeLo); if(S.fadeHi>0) wf*=sm((zB-z)/S.fadeHi); if(wf<=0) return 0;
   const {w,h}=src; let u=((theta-S.rot*Math.PI/180)/(2*Math.PI))%1; if(u<0) u+=1; u=(u*S.ru)%1; let v=((z-zA)/(zB-zA))*S.rv; v=v>=S.rv? 0.999999 : v%1;
   const fx=u*w-0.5, fy=(1-v)*h-0.5; const x0=Math.floor(fx), y0=Math.max(0,Math.min(h-1,Math.floor(fy))), y1=Math.min(h-1,y0+1); const tx=fx-x0, ty=Math.max(0,Math.min(1,fy-y0));
   const X=k=>((k%w)+w)%w; const a=proc[y0*w+X(x0)], b=proc[y0*w+X(x0+1)], c=proc[y1*w+X(x0)], d=proc[y1*w+X(x0+1)];
   const g=(a*(1-tx)+b*tx)*(1-ty)+(c*(1-tx)+d*tx)*ty;
-  return S.mode==='in'? -S.amp*g : S.mode==='mid'? S.amp*(2*g-1) : S.amp*g; }
-// for undo snapshots (image by name only) and settings files (image included)
-function params(){ return {...S, img: src? src.name : null}; }
+  return wf*(S.mode==='in'? -S.amp*g : S.mode==='mid'? S.amp*(2*g-1) : S.amp*g); }
+// params(): for undo snapshots (no image); state(): for settings files (image included)
+function params(){ return {...S}; } // the image itself is not part of undo (like the STL), so it is not compared either
 function setParams(o){ if(!o) return; for(const k of Object.keys(DEF)) if(k in o) S[k]=o[k]; writeUI(); process(); preview(); }
 function state(){ return {params:{...S}, image: src? {name:src.name,url:src.url} : null}; }
 function setState(o,cb){ if(!o){ Object.assign(S,DEF); src=null; writeUI(); process(); preview(); cb&&cb(); return; } Object.assign(S,DEF,o.params||{}); writeUI();
   if(o.image&&o.image.url) loadURL(o.image.name||'image',o.image.url,cb); else { src=null; process(); preview(); cb&&cb(); } }
-function describe(){ return S.on&&src? `bump ${src.name} ${S.mode} amp ${S.amp}mm rep ${S.ru}x${S.rv} rot ${S.rot} range ${S.z0}-${S.z1}% blur ${S.blur}${S.inv?' inv':''}` : 'bump off'; }
-return {mount,disp,params,setParams,state,setState,describe,defaults:()=>({...DEF})};
+function describe(){ return S.on&&src? `bump ${src.name} ${S.mode} amp ${S.amp}mm rep ${S.ru}x${S.rv} rot ${S.rot} range ${S.z0}-${S.z1}%${S.fadeLo||S.fadeHi?` fade ${S.fadeLo}/${S.fadeHi}mm`:''} blur ${S.blur}${S.inv?' inv':''}` : 'bump off'; }
+return {mount,disp,params,setParams,state,setState,describe,defaults:()=>({...DEF}),sampleImage:k=>sample(k)};
 })();
 </script>
 <script>/* ---- inlined from shared/rim.js ---- */
@@ -839,7 +886,7 @@ function recompute(){ if(!contours) return; readP();
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
     p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false;
-    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.m*=r.k; p.hh=(p.hh||1)*r.k; if(P.wMode==='flow') p.f/=r.k; } } }
+    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.em=(p.em||1)*r.k; p.hh=(p.hh||1)*r.k; /* thicker layer, same bead width: scale E only */ } } }
   // slope compensation (shared/wall.js): widen the bead where the designed wall leans
   const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
   // overhang check vs point one turn below
@@ -1040,6 +1087,8 @@ $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.va
     for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
     applySnap(o.settings); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record(); setSetMsg(`${f.name} を読み込みました${stlMsg}`,'ok'); }); });
 let defaults=snap(); hist.cur=null; record();
+if(window.ClayTemplates) ClayTemplates.mount($('btnSetReset'),'path',t=>{ const base=JSON.parse(JSON.stringify(defaults)); Object.assign(base.v,t.v||{}); if(t.c) Object.assign(base.c,t.c); base.b=Object.assign({},defaults.b||{},t.b||{}); base.r=Object.assign({},defaults.r||{},t.r||{});
+  record(); applying=true; applySnap(base); if(t.bumpSample&&window.ClayBump) ClayBump.sampleImage(t.bumpSample); applying=false; recompute(); record(); setSetMsg(`作例「${t.name}」を開きました（${t.desc}。⌘Z で元に戻せます）`,'ok'); });
 ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(defaults); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
 // shortcuts: leave text areas and the file-name box to the browser's own undo
 document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));

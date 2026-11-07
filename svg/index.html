@@ -290,6 +290,7 @@ M82 ;absolute extrusion mode</textarea>
 
 <script src="../shared/nav.js"></script>
 <script src="../shared/printer.js"></script>
+<script src="../shared/templates.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -757,6 +758,7 @@ document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod
   else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
 applyTheme(); useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true);
 defaults={s:snap(),t:Object.fromEntries(TKEYS.map(k=>[k,$(k).value]))}; record();
+if(window.ClayTemplates) ClayTemplates.mount($('btnSetReset'),'line',t=>{ record(); applying=true; applySnap(Object.assign({},defaults.s,t.s||{}),false); applying=false; record(); setSetMsg(`作例「${t.name}」を開きました（${t.desc}。⌘Z で元に戻せます）`,'ok'); });
 window.__cll={gcode:()=>gcode(),get path(){return path;},get checks(){return checks;},get src(){return src;},loadText};
 })();
 </script>
