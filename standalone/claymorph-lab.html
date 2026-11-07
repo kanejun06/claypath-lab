@@ -482,7 +482,7 @@ function build(meshes){ let n=0; const parts=[];
   return {buf,tris:n}; }
 // returns {ok,msg} for the page to show
 function save(meshes,base){ const {buf,tris}=build(meshes); if(!tris) return {ok:false,msg:'保存する形がありません'};
-  const name=(base||'clay').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_')+'_clay.stl'; // _clay: not to be confused with the STL that was loaded const mb=(buf.byteLength/1048576).toFixed(1);
+  const name=(base||'clay').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_')+'_clay.stl'; /* _clay: not to be confused with a loaded STL */ const mb=(buf.byteLength/1048576).toFixed(1);
   try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'model/stl'})); a.download=name; document.body.appendChild(a); a.click(); a.remove();
     return {ok:true,msg:`${name} を書き出しました（${tris.toLocaleString()} 三角形、${mb} MB）`}; }
   catch(e){ return {ok:false,msg:'この表示では STL を保存できません'}; } }
