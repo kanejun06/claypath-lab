@@ -218,6 +218,8 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
 
     <section id="bumpSec"></section>
 
+    <section id="rimSec"></section>
+
     <section>
       <h2>ガード</h2>
       <div class="row"><label for="ovh">オーバーハング警告</label><input id="ovh" type="number" step="1" min="5" max="80" value="30"><span class="unit">°</span></div>
@@ -317,6 +319,7 @@ M82 ;absolute extrusion mode</textarea>
 <script src="shared/nav.js"></script>
 <script src="shared/printer.js"></script>
 <script src="shared/bump.js"></script>
+<script src="shared/rim.js"></script>
 <script src="shared/fill.js"></script>
 <script src="shared/wall.js"></script>
 <script src="shared/settings.js"></script>
@@ -431,7 +434,8 @@ const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cXY=new Curve($('curveXY'),0,1,[1,1,1,1,1],()=>recompute());
 const cZ=new Curve($('curveZ'),0,1,[1,1,1,1,1],()=>recompute());
-if(window.ClayBump) ClayBump.mount($('bumpSec'),()=>recompute()); // shared/bump.js: image bump section
+if(window.ClayBump) ClayBump.mount($('bumpSec'),()=>recompute());
+if(window.ClayRim) ClayRim.mount($('rimSec'),()=>recompute()); // shared/rim.js: slanted / wavy / spouted rim // shared/bump.js: image bump section
 
 /* ---------- slicing ---------- */
 let sliceTimer=null;
@@ -470,6 +474,7 @@ function recompute(){ if(!contours) return; readP();
   const d2r=Math.PI/180; const fmin=P.fMin,fmax=P.fMax; const zcap=0.45*lh; let clampF=0,clampV=0,clampXY=0,clampZ=0;
   const zWall=(nB+1)*lh, free=P.modFree, rampL=3;
   const baseOf=p=> (P.onV && p.layer===0) ? P.vFirst : P.baseF; // first-layer speed (bottom layer 1, or wall layer 1 without bottom)
+  if(window.ClayRim) ClayRim.begin();
   for(const p of pts){ const th=p.theta, z=p.z, h=p.h;
     if(p.bottom){ p.m=p.bm||1; p.v=1; p.f=baseOf(p); p.X=p.x; p.Y=p.y; p.Z=z; p.bad=false; continue; }
     const g = free>0 ? Math.min(1,Math.max(0,(z-zWall-free)/rampL)) : 1; const gs=g*g*(3-2*g);
@@ -484,7 +489,8 @@ function recompute(){ if(!contours) return; readP();
     if(window.ClayBump) dxy+=ClayBump.disp(th,z,zWall,H)*gs; // image bump (outside the XY guard)
     let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
     dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
-    p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false; }
+    p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false;
+    if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.m*=r.k; p.hh=(p.hh||1)*r.k; if(P.wMode==='flow') p.f/=r.k; } } }
   // slope compensation (shared/wall.js): widen the bead where the designed wall leans
   const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
   // overhang check vs point one turn below
@@ -512,6 +518,7 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(p.nB>0 && p.fillZig) add(p.fillTravel>p.nB*6?'mid':'', `底面 ${p.nB} 層のうち ${p.fillZig} 層を「外周＋往復」で充填（同心らせんでは中が埋まらない形のため。線の向きは層ごとに90°回転、持ち上げ移動 ${p.fillTravel} 回）${p.fillZig<p.nB?'。残りは同心らせん':''}`);
   if(p.nB>0 && p.fillZig<p.nB) add('', `底面 ${p.nB-p.fillZig} 層を同心らせんで充填（最大 ${p.fillRings} 周＋中心へ1周${p.bottomWaveMax>0.05?`、外周は壁の波 ±${p.bottomWaveMax.toFixed(2)}mm`:''}${P.bottomExt>0?`＋外へ ${Math.round(P.bottomExt)} 周`:''}）`);
   if(P.spiral) add(p.join==='none'?'mid':'', p.join==='ramp'?'らせんへのつなぎ：底面の上に傾斜の1周（高さ0.2→1層、押出も比例）':p.join==='fill'?`らせんへのつなぎ：1周目の押出を1→2倍${P.joinMode==='ramp'?'（底面なしのため傾斜の代わり）':''}`:'らせんの1周目が底面から最大1層ぶん浮く（つなぎなし）');
+  if(window.ClayRim&&ClayRim.params().on){ const rs=ClayRim.stats(); add(rs.min<0.6||rs.max>1.4?'mid':'', rs.n? `口の形：口の近くで層の厚みを ×${rs.min.toFixed(2)}〜×${rs.max.toFixed(2)} に変えて縁を傾ける${rs.min<0.6||rs.max>1.4?'（変化が急。「変化させる高さ」を長くする）':''}` : '口の形：変化なし'); }
   if(P.slopeOn) add('', p.slopeSt.n? `傾斜補正：${p.slopeSt.n.toLocaleString()} 点を太く（最大 ×${p.slopeSt.kmax.toFixed(2)}${p.slopeSt.kmax>=P.slopeMax-1e-3?'、上限で頭打ち':''}）` : '傾斜補正：傾いた壁なし');
   if(P.modFree>0) add('', `壁の下 ${P.modFree} mm は変調なし（その上 3 mm で立ち上げ）`);
   if(p.nB>0 && p.fillConcave && p.fillZig<p.nB) add('mid', `輪郭に凹みがあり、充填の内側で経路が重なる可能性（凹点 ${Math.round(p.fillConcave/p.nB)}）`);
@@ -598,6 +605,7 @@ if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='6
 /* ---------- G-code ---------- */
 function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
   const out=[]; out.push(`; ClayPath Lab  ${new Date().toISOString().slice(0,16)}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}  Z ${P.onZ?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | Z amp ${P.zAmp} n ${P.zN} tw ${P.zTw} ${P.zWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
+  if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
   out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
@@ -654,11 +662,12 @@ $('xyAmp').value=1.2; $('xyN').value=10; $('xyTw').value=3; $('fAmp').value=0.25
 /* ---------- undo / redo / settings file ---------- */
 // one snapshot = every control and the four curves (the STL itself is not part of undo)
 const CURVES={F:cF,V:cV,XY:cXY,Z:cZ}; const TKEYS=['gStart','gEnd'];
-function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; } return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), b:window.ClayBump?ClayBump.params():null}; }
-const snapKey=o=>JSON.stringify([o.v,o.c,o.b]);
+function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; } return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), b:window.ClayBump?ClayBump.params():null, r:window.ClayRim?ClayRim.params():null}; }
+const snapKey=o=>JSON.stringify([o.v,o.c,o.b,o.r]);
 function applySnap(o){ for(const k of ids){ const el=$(k); if(!(k in o.v)) continue; if(el.type==='checkbox') el.checked=!!o.v[k]; else el.value=o.v[k]; fmt2(k); }
   for(const [k,c] of Object.entries(CURVES)) if(o.c&&o.c[k]) c.set(o.c[k]);
   if(o.b&&window.ClayBump) ClayBump.setParams(o.b);
+  if(o.r&&window.ClayRim) ClayRim.setParams(o.r);
   if(window.ClayPrinter) ClayPrinter.reapply(); dim(); reslice(); }
 const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
 function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
