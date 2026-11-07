@@ -239,6 +239,7 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
         <input type="text" id="fname" value="clayline" aria-label="ファイル名">
         <button class="primary" id="btnSave" type="button">保存</button>
         <button id="btnCopy" type="button">コピー</button>
+        <button id="btnStl" type="button" title="プレビューの形（押し出される粘土の形）をSTLで保存。レンダリングや資料用で、再スライスには使わない">STL</button>
       </div>
       <div class="msg" id="msg"></div>
       <details>
@@ -290,6 +291,7 @@ M82 ;absolute extrusion mode</textarea>
 
 <script src="../shared/nav.js"></script>
 <script src="../shared/printer.js"></script>
+<script src="../shared/stl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -694,6 +696,7 @@ async function saveText(base,ext,txt){ const dl=await getDl();
   try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${base}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); setMsg(`${base}.${ext} を書き出しました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ setMsg('この表示では保存できません。コピーを使ってください','err'); } }
 const safe=s=>(s||'clayline').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_');
 $('btnSave').onclick=()=>{ if(path) saveText(safe($('fname').value),'gcode',gcode()); };
+$('btnStl').onclick=()=>{ if(!window.ClaySTL||!meshes.length) return; const r=ClaySTL.save(meshes,$('fname').value); setMsg(r.msg,r.ok?'ok':'err'); };
 $('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
 $('btnSampleSave').onclick=()=>saveText('clayline_sample_tray','svg',sampleSVGText());
 
