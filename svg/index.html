@@ -560,7 +560,7 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
     if(P.rotTarget==='lines' && src.items.some(i=>i.closed)) add('', '回した線は枠で切っている。判定の交差・接点は回す前の絵で数えている'); }
   if(P.rot && P.rotTarget==='lines' && p.rot.cover){ const cv=p.rot.cover; add(cv.ok?'':'bad', cv.ok? `模様は回転の中心から ${cv.reach.toFixed(0)} mm まであり、枠の一番遠い所（${cv.rf.toFixed(0)} mm）を覆う。回しても枠の中は抜けない` : `回すと枠の角のあたりが抜ける：模様は中心から ${cv.reach.toFixed(0)} mm まで、枠の一番遠い所は ${cv.rf.toFixed(0)} mm。模様を直径 ${Math.ceil(cv.rf*2)} mm の円を覆う大きさに広げる`); }
   if(P.frameMode==='svg' && !src.items.some(i=>i.closed)) add('mid','SVGに閉じた形がないので枠なし。「枠」で角か丸を選ぶと、アプリが枠をつくって模様を切る');
-  const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>280) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
+  const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>Math.min(MP.build.x,MP.build.y)-20) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
   if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・use ${src.nUse}・画像 ${src.nImg}（アウトライン化して読み込む）`);
   if(P.useSW){ const sws=src.items.filter(i=>!i.closed).map(i=>i.sw); if(sws.length) add('',`線の太さ：${Math.min(...sws).toFixed(2)}〜${Math.max(...sws).toFixed(2)} mm → 倍率 ×${swM({sw:Math.min(...sws)}).toFixed(2)}〜×${swM({sw:Math.max(...sws)}).toFixed(2)}`); }
   $('warns').innerHTML=W.join(''); }
@@ -574,7 +574,7 @@ scene.add(new THREE.AmbientLight(0xffffff,0.55)); const dl=new THREE.Directional
 let grid=null; const target=new THREE.Vector3(); const sph={r:300,th:0.9,ph:1.0};
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function colorOf(c){ return new THREE.Color(c); }
-function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid) scene.remove(grid); grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); if(path) buildMesh(); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid) scene.remove(grid); grid=new THREE.GridHelper((MP.build&&MP.build.x)||300,Math.round(((MP.build&&MP.build.x)||300)/10),colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:220; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
 function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); const a=freeArea();
@@ -674,6 +674,7 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     `; thickness wall x${P.wallW} frame x${P.frameWm}`,
     `; svg units ${src.unitNote} scale ${P.scale}% x${P.sx}% y${P.sy}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
+  if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
   out.push($('gStart').value.trim()); let E=0;
   if(P.skirt){ const o=MP.skirtOff, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
     out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);

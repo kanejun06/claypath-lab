@@ -536,7 +536,7 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x667088,0.9)); const dl=new THREE.
 let grid=null, mesh=null; const target=new THREE.Vector3(0,0,50); let sph={r:260,th:0.9,ph:1.0};
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function colorOf(c){ return new THREE.Color(c); }
-function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); if(path) buildMesh(); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper((MP.build&&MP.build.x)||300,Math.round(((MP.build&&MP.build.x)||300)/10),colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 // free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
 function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:200; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
@@ -609,6 +609,7 @@ function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*l
   if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
+  if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
   out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
   const bf=Math.round((P.onV?P.vFirst:P.baseF)*60); // skirt runs on the first layer
   if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);

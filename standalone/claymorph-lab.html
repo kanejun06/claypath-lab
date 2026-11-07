@@ -420,11 +420,16 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
  * ?teacher (e.g. .../morph/?teacher) unlocks them for that tab only, for test prints; reloading brings these values back.
  * To change what students print with, edit this file and push.
  *
- * Machine: SYNO-SOURCE-3040 (air tank + screw extruder), Kobe Design University. Values confirmed on the machine.
+ * Several machines can be described (PROFILES). The page uses ?machine=<id> (default: clay3040); a teacher can switch
+ * from the header in ?teacher mode. Give students the link with the machine they should use.
+ *   clay3040    SYNO-SOURCE-3040 (air tank + screw extruder), Kobe Design University. Values confirmed on the machine.
+ *   ender3v3_10 Creality Ender-3 V3, 1.0 mm nozzle, PLA. PROVISIONAL: generic start code and typical PLA values,
+ *               not yet checked on the machine. Replace gStart/gEnd with what Creality Print writes for this printer.
  */
 (function(){
 "use strict";
-const PROFILE={
+const PROFILES={
+clay3040:{
   name:'SYNO-SOURCE-3040・ノズル1.5mm・標準',
   short:'3040・1.5mm',   // shown in the header chip
   nozzle:1.5,        // mm. 2.0 mm also exists but uses much more clay; the course uses 1.5 only
@@ -445,8 +450,29 @@ const PROFILE={
   build:{x:300,y:300,z:400}, // mm
   gStart:"G90 ;absolute positioning\nG92 Z0 ;current needle height is Z zero\nG21 ;metric values\nM82 ;absolute extrusion\nM107 ;fan off\nG28 X0 Y0 ;home X and Y only. never home Z\nG92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print\nG1 Z15.0 F2400 ;lower the platform\nG92 E0 ;reset extruder\nG1 F200 E3 ;prime 3mm\nM117 Printing...\nM106 S255 ;fan full\nG92 E0\nG1 F1800 E-1 ;retract",
   gEnd:"M107\nG91 ;relative\nG1 E-1 F300\nG1 Z+20\nG90 ;back to absolute\nG28 X0 Y0\nM106 S0 ;fan off\nM84 ;disable motors\nM82 ;absolute extrusion mode",
-  notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、9mm MDF）'
+  notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、9mm MDF）',
+  soft:{ovh:30},     // not locked: page defaults that suit this machine (overhang warning angle)
+},
+ender3v3_10:{
+  name:'Ender-3 V3・ノズル1.0mm・PLA（仮）',
+  short:'Ender-3 V3・1.0mm・PLA（仮）',
+  provisional:true,  // start code and values not yet checked on the machine
+  nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eMul:1.0,
+  baseF:25,          // mm/s: 1.1 × 0.5 × 25 ≈ 14 mm³/s, well inside what the hotend melts
+  vFirst:15, travelF:150, zF:10,
+  retract:0.8, retractF:40, hop:0.4,
+  skirt:true, skirtOff:5,
+  bedX:110, bedY:110,
+  build:{x:220,y:220,z:250},
+  gStart:"; PROVISIONAL start code for Ender-3 V3 (Creality OS / Klipper). Replace with the start of a Creality Print G-code for this printer.\nM140 S60 ;bed\nM104 S220 ;nozzle (PLA, 1.0 mm nozzle)\nG90\nM82 ;absolute extrusion\nG28 ;home all axes\nM190 S60\nM109 S220\nG92 E0\nG1 Z2 F600\nG1 X5 Y20 F6000 ;prime line at the left edge\nG1 Z0.4 F600\nG1 X5 Y180 E15 F900\nG1 X6 Y180 F900\nG1 X6 Y20 E30 F900\nG92 E0\nG1 Z2 F600\nM106 S255 ;part fan",
+  gEnd:"G91\nG1 E-1 F2400\nG1 Z10 F600\nG90\nG1 X0 Y200 F6000 ;present the print\nM104 S0\nM140 S0\nM107\nM84",
+  notes:'PLA。温度・速度・開始コードは仮。Creality Print の G-code の開始部分に差し替えて使う',
+  soft:{ovh:45},
+},
 };
+const MACHINE=(location.search.match(/[?&]machine=([\w-]+)/)||[])[1];
+const PROFILE=PROFILES[MACHINE]||PROFILES.clay3040;
+const PROFILE_ID=PROFILES[MACHINE]? MACHINE : 'clay3040';
 // inputs that belong to the machine (only those a page has are touched)
 const LOCK=['lineW','layerH','filD','eMul','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
 const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
@@ -456,12 +482,17 @@ function setValues(){ const $=id=>document.getElementById(id);
     if(!teacher){ el.disabled=true; el.title='機械の設定（変更は教員のみ）'; el.classList.add('locked'); } } }
 let applied=false;
 function apply(){ setValues(); if(applied) return; applied=true;
+  for(const [id,v] of Object.entries(PROFILE.soft||{})){ const el=document.getElementById(id); if(el) el.value=v; }
   const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}'; document.head.appendChild(st);
   const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
-    b.textContent= teacher? `教員モード：機械の設定を変更できます（このタブだけ。再読み込みで ${PROFILE.name} に戻る）` : `🔒 ${PROFILE.short}`; b.title= teacher? '' : '機械の設定は教員だけが変更できます'; if(teacher) hd.appendChild(b); else { const sub=hd.querySelector('.sub'); (sub||hd.lastChild).after(b); } } }
+    if(teacher){ b.append('教員モード：機械の設定を変更できます（このタブだけ。再読み込みで元の値に戻る）　機械：');
+      const sel=document.createElement('select'); sel.style.cssText='font:inherit;font-size:11px'; for(const [id,p] of Object.entries(PROFILES)){ const o=document.createElement('option'); o.value=id; o.textContent=p.name; if(id===PROFILE_ID) o.selected=true; sel.appendChild(o); }
+      sel.title='機械を切り替える（ページを開き直す。今の作業は保存しておく）';
+      sel.onchange=()=>{ const q=new URLSearchParams(location.search); q.set('machine',sel.value); location.search=q.toString(); }; b.appendChild(sel); hd.appendChild(b); }
+    else { b.textContent=`🔒 ${PROFILE.short}`; b.title='機械の設定は教員だけが変更できます'+(PROFILE.provisional?'（この機械の設定は仮です）':''); const sub=hd.querySelector('.sub'); (sub||hd.lastChild).after(b); } } }
 // after loading a settings file: put the machine values back unless a teacher is testing
 function reapply(){ if(!teacher) setValues(); }
-window.ClayPrinter={PROFILE, LOCK, teacher, apply, reapply};
+window.ClayPrinter={PROFILE, PROFILES, PROFILE_ID, LOCK, teacher, apply, reapply};
 })();
 </script>
 <script>/* ---- inlined from shared/templates.js ---- */
@@ -821,6 +852,8 @@ return {saveText,toB64,fromB64,readFile,twoStep,safe};
 "use strict";
 // machine profile (shared/printer.js): fills and locks the machine inputs; falls back to the page's own values if the file is missing
 const MP=Object.assign({zF:40,retract:1,retractF:30,hop:1,skirtOff:6},(window.ClayPrinter&&ClayPrinter.PROFILE)||{}); if(window.ClayPrinter) ClayPrinter.apply();
+const BUILD=MP.build||{x:300,y:300,z:400}, MAXD=Math.min(BUILD.x,BUILD.y)-20, MAXH=BUILD.z-20; // limits of the vessel on this machine
+for(const id of ['dB','dT','dMax','pd']){ const e=document.getElementById(id); if(e) e.max=MAXD; } for(const id of ['hgt','pz']){ const e=document.getElementById(id); if(e) e.max=MAXH; }
 const $ = id => document.getElementById(id);
 
 /* ---------- STL ---------- */
@@ -1106,7 +1139,7 @@ function drawProfile(){ const cv=$('profile'); if(!cv) return; const dpr=window.
   const busy=[$('pz'),$('pd')].includes(document.activeElement);
   if(!busy){ if(has){ const p=arr[profSel.i]; $('pz').value=(p.h*vw.H).toFixed(1); $('pd').value=p.x.toFixed(1); } else { $('pz').value=''; $('pd').value=''; } } }
 // bottom/top size inputs <-> the two end points of each side (the diameter changes, the centre shift stays)
-function setEndD(i,D){ const a=i===0?prof.L[0]:prof.L[prof.L.length-1], b=i===0?prof.R[0]:prof.R[prof.R.length-1]; const o=(b.x-a.x)/2; D=Math.min(280,Math.max(10,D)); a.x=D/2-o; b.x=D/2+o; }
+function setEndD(i,D){ const a=i===0?prof.L[0]:prof.L[prof.L.length-1], b=i===0?prof.R[0]:prof.R[prof.R.length-1]; const o=(b.x-a.x)/2; D=Math.min(MAXD,Math.max(10,D)); a.x=D/2-o; b.x=D/2+o; }
 function profSync(fromInputs){ if(fromInputs){ if(+$('dB').value) setEndD(0,+$('dB').value); if(+$('dT').value) setEndD(1,+$('dT').value); }
   else { $('dB').value=Math.round((prof.L[0].x+prof.R[0].x)*10)/10; $('dT').value=Math.round((prof.L[prof.L.length-1].x+prof.R[prof.R.length-1].x)*10)/10; } }
 let profTimer=0; function profChanged(){ profSync(false); drawProfile(); cancelAnimationFrame(profTimer); profTimer=requestAnimationFrame(()=>reslice()); }
@@ -1115,11 +1148,11 @@ function profHit(e){ const cv=$('profile'); const r=cv.getBoundingClientRect(); 
   if(best && profSym()) best.side='R'; // while symmetric the right side is the master
   return {hit:best,x,y,vw}; }
 function clampH(arr,i,h){ const n=arr.length; if(i===0) return 0; if(i===n-1) return 1; return Math.min(arr[i+1].h-0.02,Math.max(arr[i-1].h+0.02,h)); }
-function setHeightFromRim(Hmm){ const H=Math.round(Math.min(380,Math.max(5,Hmm))*10)/10; $('hgt').value=H; profLastH=H; }
+function setHeightFromRim(Hmm){ const H=Math.round(Math.min(MAXH,Math.max(5,Hmm))*10)/10; $('hgt').value=H; profLastH=H; }
 // move point i of side sd: h (0..1, ignored at the ends) and its distance from the axis (mm, may cross the axis but keeps the section ≥10 mm wide at that point)
 function profSet(sd,i,h,x){ const arr=prof[sd]; const p=arr[i]; if(h!==null) p.h=clampH(arr,i,h);
   if(h!==null && profPair() && prof[other(sd)][i]) prof[other(sd)][i].h=p.h;
-  if(x!==null){ const opp=sideX(prof[other(sd)],p.h); p.x=Math.min(280-opp,Math.max(10-opp,x)); }
+  if(x!==null){ const opp=sideX(prof[other(sd)],p.h); p.x=Math.min(MAXD-opp,Math.max(10-opp,x)); }
   if(profSym()) mirrorFrom(sd); }
 (function wireProfile(){ const cv=$('profile');
   cv.addEventListener('pointerdown',e=>{ const t=profHit(e); if(!t.hit){ profSel=null; drawProfile(); return; } profSel=t.hit; profDrag={...t.hit,view:{s:t.vw.s,y0:t.vw.y0}}; cv.setPointerCapture(e.pointerId); drawProfile(); });
@@ -1153,9 +1186,9 @@ function profSet(sd,i,h,x){ const arr=prof[sd]; const p=arr[i]; if(h!==null) p.h
   // ---- proportional scaling ----
   profLastH=+$('hgt').value; const locked=()=>$('lockProp').getAttribute('aria-pressed')==='true';
   $('lockProp').onclick=()=>{ const b=$('lockProp'); const on=!locked(); b.setAttribute('aria-pressed',on?'true':'false'); b.title=on?'縦横比を保つ':'縦横比を保たない'; b.textContent=on?'🔗':'⛓️‍💥'; };
-  // largest factor that keeps the vessel inside the limits (diameter 10-280, height 5-380)
+  // largest factor that keeps the vessel inside the limits (diameter 10..MAXD, height 5..MAXH)
   function capF(f,withD,withH){ const dmx=profMax(), dmn=profMin(); const H=+$('hgt').value;
-    if(withD){ f=Math.min(f,280/dmx); f=Math.max(f,10/dmn); } if(withH){ f=Math.min(f,380/H); f=Math.max(f,5/H); } return f; }
+    if(withD){ f=Math.min(f,MAXD/dmx); f=Math.max(f,10/dmn); } if(withH){ f=Math.min(f,MAXH/H); f=Math.max(f,5/H); } return f; }
   function scaleD(f){ for(const sd of ['L','R']) for(const q of prof[sd]) q.x*=f; profSync(false); }
   function scaleAll(f){ f=capF(f,true,true); scaleD(f); const H=Math.round(+$('hgt').value*f*10)/10; $('hgt').value=H; profLastH=H; reslice(); }
   $('sUp').onclick=()=>scaleAll(1.1); $('sDown').onclick=()=>scaleAll(1/1.1);
@@ -1244,8 +1277,8 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(p.nB>0 && p.fillConcave && p.fillZig<p.nB) add('mid', `輪郭に凹みがあり、充填の内側で経路が重なる可能性（凹点 ${Math.round(p.fillConcave/p.nB)}）`);
   if(contours.multi) add('mid', `${contours.multi} 層で輪郭が複数あり、最大のものだけ使用`);
   if(p.missing) add('bad', `${p.missing} 層で輪郭が取れず、前の層を流用`);
-  { const D=2*(morphInfo.rMax||0); if(D>280) add('bad', `最大径 ${D.toFixed(0)} mm がベッド（300 mm）に対して大きすぎる`); else add('', `最大径 ${D.toFixed(0)} mm`);
-    if(p.H>380) add('bad', `高さ ${p.H.toFixed(0)} mm が造形範囲（400 mm）に近い`);
+  { const D=2*(morphInfo.rMax||0); if(D>MAXD) add('bad', `最大径 ${D.toFixed(0)} mm がベッド（${Math.min(BUILD.x,BUILD.y)} mm）に対して大きすぎる`); else add('', `最大径 ${D.toFixed(0)} mm`);
+    if(p.H>MAXH) add('bad', `高さ ${p.H.toFixed(0)} mm が造形範囲（${BUILD.z} mm）に近い`);
     add(morphInfo.fallback?'mid':'', morphInfo.mode==='polar'?'点の対応：中心からの角度':morphInfo.fallback?'点の対応：周の長さ（中心から見て輪郭が重なる形があるため自動で切替）':'点の対応：周の長さ');
     if(morphInfo.mode==='polar'&&morphInfo.notStar) add('bad','中心から見て輪郭が重なる形を「中心からの角度」で混ぜている。形が崩れるので「周の長さ」に'); }
   $('warns').innerHTML=W.join('');
@@ -1259,7 +1292,7 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x667088,0.9)); const dl=new THREE.
 let grid=null, mesh=null; const target=new THREE.Vector3(0,0,50); let sph={r:260,th:0.9,ph:1.0};
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function colorOf(c){ return new THREE.Color(c); }
-function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); if(path) buildMesh(); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper((MP.build&&MP.build.x)||300,Math.round(((MP.build&&MP.build.x)||300)/10),colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 // free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
 function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:200; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
@@ -1332,6 +1365,7 @@ function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*l
   if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
+  if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
   out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
   const bf=Math.round((P.onV?P.vFirst:P.baseF)*60); // skirt runs on the first layer
   if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);
