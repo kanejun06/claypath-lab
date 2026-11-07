@@ -119,7 +119,8 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
       </div>
       <div class="note" id="srcInfo">—</div>
       <div class="row"><label for="pxUnit">px・単位なしの扱い</label><select id="pxUnit"><option value="72">1px＝1pt（Illustrator）</option><option value="96">96dpi（Figma・ブラウザ）</option><option value="mm">1px＝1mm</option></select></div>
-      <div class="row"><label for="scale">拡大率</label><input id="scale" type="number" step="1" min="5" max="1000" value="100"><span class="unit">%</span></div>
+      <div class="row"><label for="scale">拡大率（全体）</label><input id="scale" type="number" step="1" min="5" max="1000" value="100"><span class="unit">%</span></div>
+      <div class="row"><label for="sx">横 × 縦の倍率</label><input id="sx" type="number" step="1" min="5" max="1000" value="100"><span class="unit">×</span><input id="sy" type="number" step="1" min="5" max="1000" value="100"><span class="unit">%</span></div>
       <div class="row"><label for="step">曲線の細かさ</label><input id="step" type="number" step="0.1" min="0.2" max="3" value="0.5"><span class="unit">mm</span></div>
       <div class="note">線（パス・直線・折れ線）は「壁の線」、閉じた形（四角・円・閉じたパス）は「枠」として扱う。塗りは使わない。width属性がmmならそのまま、pxか単位なしなら上の設定で換算する。</div>
     </section>
@@ -169,12 +170,15 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
 
     <section>
       <h2>太さ・速度</h2>
+      <div class="row"><label for="wallW">壁の線の太さ</label><input id="wallW" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
+      <div class="row"><label for="frameWm">枠の太さ</label><input id="frameWm" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
+      <div class="note" id="wNote">—</div>
       <div class="row"><label class="toggle"><input id="useSW" type="checkbox">SVGの線の太さを押出に反映</label></div>
       <div class="row"><label for="wMin">太さ倍率の範囲</label><input id="wMin" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">〜</span><input id="wMax" type="number" step="0.05" min="1" max="3" value="1.6"></div>
       <div class="row"><label for="baseF">速度</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
       <div class="row"><label for="vFirst">初層速度</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
       <div class="row"><label for="prime">移動後の先押し</label><input id="prime" type="number" step="0.1" min="0" max="5" value="0"><span class="unit">mm</span></div>
-      <div class="note">線の太さを反映すると、stroke-width÷線幅（設定値）を太さ倍率にする（範囲で切り詰め）。先押しは持ち上げ移動の後、書き始める前に足すE（フィラメント長）。</div>
+      <div class="note">太さは押出量（E）で変える（速度は同じ）。線の太さを反映すると、stroke-width÷線幅（設定値）を線ごとの倍率にして、上の倍率に掛ける（範囲で切り詰め）。先押しは持ち上げ移動の後、書き始める前に足すE（フィラメント長）。</div>
     </section>
   </div>
 
@@ -272,7 +276,7 @@ M82 ;absolute extrusion mode</textarea>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const ids=['pxUnit','scale','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const ids=['pxUnit','scale','sx','sy','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','wallW','frameWm','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
 const P={};
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
@@ -329,13 +333,13 @@ function parseSVG(text){ readP();
         if(t==='g'||t==='a'||t==='svg'&&c!==svg){ walk(c); continue; } shape(c,t,cs); } };
     const matOf=(el)=>{ let m=new DOMMatrix(); let n=el; while(n&&n!==svg){ const tl=n.transform&&n.transform.baseVal; if(tl&&tl.numberOfItems){ const c=tl.consolidate(); if(c){ const q=c.matrix; m=new DOMMatrix([q.a,q.b,q.c,q.d,q.e,q.f]).multiply(m); } } n=n.parentNode; } return m; };
     const add=(el,cs,pts,closed)=>{ const m=matOf(el); const det=Math.sqrt(Math.abs(m.a*m.d-m.b*m.c));
-      let out=pts.map(p=>{ const x=m.a*p[0]+m.c*p[1]+m.e, y=m.b*p[0]+m.d*p[1]+m.f; return [x*mmu,-y*mmu]; });
+      let out=pts.map(p=>{ const x=m.a*p[0]+m.c*p[1]+m.e, y=m.b*p[0]+m.d*p[1]+m.f; return [x*mmu*P.sx/100,-y*mmu*P.sy/100]; });
       if(closed && out.length>2 && D(out[0],out[out.length-1])<1e-3) out.pop();
       if(!closed && out.length>2 && D(out[0],out[out.length-1])<0.05){ out.pop(); closed=true; }
       const clean=[out[0]]; for(const p of out.slice(1)) if(D(p,clean[clean.length-1])>1e-4) clean.push(p);
       let len=0; for(let k=1;k<clean.length;k++) len+=D(clean[k],clean[k-1]); if(closed) len+=D(clean[0],clean[clean.length-1]);
       if(clean.length<2||len<0.5) return;
-      const sw=(parseFloat(cs.strokeWidth)||0)*det*mmu; const hasStroke=cs.stroke&&cs.stroke!=='none';
+      const sw=(parseFloat(cs.strokeWidth)||0)*det*mmu*Math.sqrt(P.sx*P.sy)/100; const hasStroke=cs.stroke&&cs.stroke!=='none';
       items.push({pts:clean,closed,sw:hasStroke?sw:0,len,id:items.length}); };
     const sampleEl=(el,cs,d,closed)=>{ const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',d); el.parentNode.insertBefore(p,el); let L=0; try{ L=p.getTotalLength(); }catch(e){}
       const n=Math.max(2,Math.ceil(L/stepU)); const pts=[]; for(let k=0;k<=n;k++){ const q=p.getPointAtLength(L*k/n); pts.push([q.x,q.y]); } p.remove();
@@ -404,7 +408,7 @@ function genFrame(){ if(P.frameMode==='rect'){ const w=P.frameW/2, h=P.frameD/2,
   return null; }
 // shorten line ends that sit on (or near) the frame so the end bead overlaps the frame bead by endOv% of the line width
 function trimStart(pts,t){ if(t<=0) return pts; let k=1, acc=0; while(k<pts.length){ const L=D(pts[k-1],pts[k]); if(acc+L>t){ const u=(t-acc)/L; const a=pts[k-1],b=pts[k]; return [[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u]].concat(pts.slice(k)); } acc+=L; k++; } return null; }
-function trimToFrame(parts,frames){ const t=P.lineW*(1-P.endOv/100); if(!frames.length) return parts; const out=[];
+function trimToFrame(parts,frames){ const t=(wWall()+wFrame())/2*(1-P.endOv/100); if(!frames.length) return parts; const out=[];
   for(let pts of parts){ for(const end of [0,1]){ if(!pts) break; const p=end? pts[pts.length-1] : pts[0]; let dmin=1e9; for(const F of frames) dmin=Math.min(dmin,proj(F,p).d);
       if(dmin<t-1e-6){ let q = end? pts.slice().reverse() : pts; const dist=pp=>{ let m=1e9; for(const F of frames) m=Math.min(m,proj(F,pp).d); return m; };
         // find the arc length along the line at which the distance to the frame reaches t (lines may meet the frame at a slant)
@@ -430,13 +434,15 @@ function itemsGen(deg){ const key='g'+deg.toFixed(4)+P.rotTarget; if(rotCache.ha
     const pp=it.closed? rp.concat([rp[0]]) : rp; const parts=F? trimToFrame(clipToPoly(pp,F),[F]) : [pp]; for(const q of parts) out.push(Object.assign({},it,{pts:q,closed:false})); }
   rotCache.set(key,out); return out; }
 function planWall(cur,deg){ const items=itemsAt(deg||0); const loops=items.filter(i=>i.closed), opens=items.filter(i=>!i.closed); const seq=[];
-  const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:swM(L)}); cur=pts[pts.length-1]; } };
+  const doLoops=()=>{ if(P.loops==='off') return; const rem=loops.slice(); while(rem.length){ let bi=0,bd=1e18; rem.forEach((L,i)=>{ const d=proj(L,cur).d; if(d<bd){bd=d;bi=i;} }); const L=rem.splice(bi,1)[0]; const pts=loopFrom(L,cur); seq.push({kind:'frame',pts,m:thick(L,'frame')}); cur=pts[pts.length-1]; } };
   if(P.loops==='first') doLoops();
-  if(P.order==='svg'){ for(const it of opens){ seq.push({kind:'wall',pts:it.pts,m:swM(it)}); cur=it.pts[it.pts.length-1]; } }
-  else for(const g of greedy(opens,cur,true)){ seq.push({kind:'wall',pts:g.pts,m:swM(g.it)}); cur=g.pts[g.pts.length-1]; }
+  if(P.order==='svg'){ for(const it of opens){ seq.push({kind:'wall',pts:it.pts,m:thick(it,'wall')}); cur=it.pts[it.pts.length-1]; } }
+  else for(const g of greedy(opens,cur,true)){ seq.push({kind:'wall',pts:g.pts,m:thick(g.it,'wall')}); cur=g.pts[g.pts.length-1]; }
   if(P.loops==='last') doLoops();
   return {seq,loops}; }
 function swM(it){ if(!P.useSW||!it.sw) return 1; return Math.min(P.wMax,Math.max(P.wMin,it.sw/P.lineW)); }
+function thick(it,kind){ return swM(it)*(kind==='frame'?P.frameWm:P.wallW); }
+const wWall=()=>P.lineW*P.wallW, wFrame=()=>P.lineW*P.frameWm;
 function basePoly(){ if(P.frameMode==='rect'||P.frameMode==='circle') return genFrame(); const loops=(P.frameMode==='svg'?src.items:itemsAt(0)).filter(i=>i.closed&&P.frameMode==='svg'); if(loops.length){ return loops.reduce((a,b)=>b.area>a.area?b:a); }
   let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const it of src.items) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); }
   if(P.frameMode==='none'){ const it0=itemsAt(0); mnx=1e9;mny=1e9;mxx=-1e9;mxy=-1e9; for(const it of it0) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); } }
@@ -484,7 +490,7 @@ function build(){ if(!src) return; readP(); const lh=P.layerH; const nTot=Math.m
 function resampleItem(it,step){ const P2=it.closed? it.pts.concat([it.pts[0]]) : it.pts; const out=[]; let s=0; out.push({x:P2[0][0],y:P2[0][1],s:0});
   for(let k=1;k<P2.length;k++){ const a=P2[k-1],b=P2[k]; const L=D(a,b); const n=Math.max(1,Math.ceil(L/step)); for(let j=1;j<=n;j++){ const t=j/n; out.push({x:a[0]+(b[0]-a[0])*t,y:a[1]+(b[1]-a[1])*t,s:s+L*t}); } s+=L; } return out; }
 function segX(a,b,c,d){ const r=[b[0]-a[0],b[1]-a[1]], q=[d[0]-c[0],d[1]-c[1]]; const den=r[0]*q[1]-r[1]*q[0]; if(Math.abs(den)<1e-12) return false; const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den, u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den; const e=1e-6; return t>e&&t<1-e&&u>e&&u<1-e; }
-function analyze(){ const its=itemsAt(0), w=P.lineW; const step=Math.min(0.5,w/3); const cell=w*2;
+function analyze(){ const its=itemsAt(0), w=wWall(); const step=Math.min(0.5,w/3); const cell=w*2;
   // crossings between open lines (and open vs frame interior crossing)
   const segs=[]; its.forEach((it,ii)=>{ const pp=it.closed? it.pts.concat([it.pts[0]]):it.pts; for(let k=1;k<pp.length;k++) segs.push({a:pp[k-1],b:pp[k],ii,k,closed:it.closed}); });
   const g=new Map(); const key=(x,y)=>Math.floor(x/cell)+','+Math.floor(y/cell);
@@ -514,14 +520,18 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   $('sLen').textContent=`${(p.lenP/1000).toFixed(2)} m`; $('sTrav').textContent=`${(p.lenT/1000).toFixed(2)} m（${p.hops} 回）`;
   $('hud').textContent=`${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
   const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
+  { const ww=wWall(), wf=wFrame(), lh=P.layerH; $('wNote').textContent=`壁の線 ${ww.toFixed(2)} mm・枠 ${wf.toFixed(2)} mm（線幅 ${P.lineW} mm に対して）`;
+    const mx=Math.max(ww,wf)*(P.useSW?P.wMax:1), mn=Math.min(ww,wf)*(P.useSW?P.wMin:1);
+    if(mx>lh*2) add('mid',`最も太い線 ${mx.toFixed(2)} mm は層高 ${lh} mm の2倍を超える。押し広げすぎて縁が波打ちやすい`);
+    if(mn<lh*1.1) add('mid',`最も細い線 ${mn.toFixed(2)} mm は層高 ${lh} mm に近い。線が切れたり、下の層に乗りにくい`); }
   add(c.cross? 'bad':'', c.cross? `同じ層の中で線が交差：${c.cross} 箇所。交点は二度押しになり盛り上がる` : '同じ層の中の交差なし');
-  add('', `接点（線の中心どうしが線幅 ${P.lineW} mm 以内）：約 ${c.contacts} 箇所。セルを閉じる所`);
+  add('', `接点（線の中心どうしが線幅 ${wWall().toFixed(2)} mm 以内）：約 ${c.contacts} 箇所。セルを閉じる所`);
   if(c.gaps) add('mid', `接しそうで離れている所：約 ${c.gaps} 箇所（最小すき間 ${c.minGap.toFixed(2)} mm）。くっつけたいなら SVG で近づける`);
   if(P.join==='frame' && !c.nLoop) add('mid','枠（閉じた形）がないので、つなぎは直線か移動になる');
   if(P.join==='frame' && c.nLoop && c.freeEnds) add('mid', `枠から ${P.snap} mm より離れた線の端：${c.freeEnds} 個（ここは直線つなぎか移動）`);
   add(p.wl.lhop>2?'mid':'', `壁の1層あたりの持ち上げ移動（最大）：${p.wl.lhop} 回${p.wl.lhop?'（始点・終点で垂れや欠けが出やすい）':'（一筆）'}`);
   if(p.wl.lfr) add(P.frameE>0.2?'mid':'', P.frameE>0? `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出 ×${P.frameE}。同じ所に粘土を足すので枠が太り、外へはみ出しやすい` : `枠の上のつなぎ：1層 ${p.wl.lfr} 回、押出なしで滑らせる${P.glideRet?'（その間リトラクト）':''}`);
-  add(P.endOv>75?'mid':'', `線の端と枠の重なり：${P.endOv}%（線の端は枠の中心線から ${(P.lineW*(1-P.endOv/100)).toFixed(2)} mm 手前で止まる）${P.endOv>75?'。重なりが大きく、端の粘土が枠を押し出しやすい':''}`);
+  add(P.endOv>75?'mid':'', `線の端と枠の重なり：${P.endOv}%（線の端は枠の中心線から ${((wWall()+wFrame())/2*(1-P.endOv/100)).toFixed(2)} mm 手前で止まる）${P.endOv>75?'。重なりが大きく、端の粘土が枠を押し出しやすい':''}`);
   if(P.rot && P.rotMode==='alt'){ add('mid', `交互の回転（${P.rot}°）：上の層の線は下の層の線と交点でしか接しない。交点の間は宙に渡るので、交点の間隔が短い絵にする`); }
   else if(P.rot){ const sh=p.rot.shift; const half=P.lineW/2; const ok=p.rot.rMax>0? (half/p.rot.rMax*180/Math.PI) : 0;
     add(sh>P.lineW? 'bad' : sh>half? 'mid':'', `回転による1層あたりの最大ずれ：${sh.toFixed(2)} mm（中心から ${p.rot.rMax.toFixed(0)} mm の所）。${sh>P.lineW? '線幅を超え、上の線が下の線から外れる。外側ほど交点でしか支えられない' : sh>half? '線幅の半分を超える。外側の線は傾いて積まれる' : '線幅の半分以内で、ほぼ真上に積める'}${sh>half? `。線幅の半分以内にするなら1層 ${ok.toFixed(2)}° 以下` : ''}`);
@@ -615,7 +625,8 @@ function gcode(){ readP(); const p=path, lh=P.layerH; const ePerMm=P.lineW*lh/(M
     `; order ${P.order}  frame ${P.loops}  join ${P.join} frame-max ${P.joinMax}mm line-max ${P.lineMax}mm snap ${P.snap}mm  frameE ${P.frameE} glideRetract ${P.glideRet?'on':'off'} endOverlap ${P.endOv}% lineE ${P.lineE}  prime ${P.prime}  strokeWidth ${P.useSW?`on ${P.wMin}-${P.wMax}`:'off'}`,
     `; rotate ${P.rot}deg/layer mode ${P.rotMode} swing ${P.rotMax}deg target ${P.rotTarget}`,
     `; frame ${P.frameMode}${P.frameMode==='rect'?` ${P.frameW}x${P.frameD} r${P.frameR}`:P.frameMode==='circle'?` dia ${P.frameDia}`:''}`,
-    `; svg units ${src.unitNote} scale ${P.scale}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
+    `; thickness wall x${P.wallW} frame x${P.frameWm}`,
+    `; svg units ${src.unitNote} scale ${P.scale}% x${P.sx}% y${P.sy}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   out.push($('gStart').value.trim()); let E=0;
   if(P.skirt){ const o=6, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
@@ -655,8 +666,8 @@ $('frameMode').addEventListener('change',frameUI);
 $('btnSample').onclick=()=>{ useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true); };
 const view=$('view'); view.addEventListener('dragover',e=>{ e.preventDefault(); view.classList.add('dragging'); }); view.addEventListener('dragleave',e=>{ if(e.target===view||!view.contains(e.relatedTarget)) view.classList.remove('dragging'); });
 view.addEventListener('drop',e=>{ e.preventDefault(); view.classList.remove('dragging'); const f=e.dataTransfer.files[0]; if(f&&/\.svg$/i.test(f.name)) readFile(f); });
-let timer=0; const reparse=new Set(['pxUnit','scale','step']);
-for(const id of ids){ const el=$(id); el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ clearTimeout(timer); timer=setTimeout(()=>{ if(!svgText) return; if(reparse.has(id)) loadText(svgText,svgName,false); else build(); },150); }); }
+let timer=0, needParse=false; const reparse=new Set(['pxUnit','scale','sx','sy','step']);
+for(const id of ids){ const el=$(id); el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ if(reparse.has(id)) needParse=true; clearTimeout(timer); timer=setTimeout(()=>{ if(!svgText) return; const np=needParse; needParse=false; if(np) loadText(svgText,svgName,false); else build(); },150); }); }
 window.addEventListener('resize',render);
 const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',applyTheme); new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
