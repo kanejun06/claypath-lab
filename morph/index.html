@@ -219,7 +219,7 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="note">斜めになった壁は、同じ線幅でも壁に垂直な厚みが薄くなる（傾き θ で 線幅×cosθ）。傾斜補正は、傾いた所ほど押出を増やして厚みを線幅にそろえる（1/cosθ 倍、上限まで）。広がる器・傾けた器の補強に。</div>
       <div class="row"><label for="joinMode">らせんへのつなぎ</label><select id="joinMode"><option value="ramp">傾斜の1周を足す</option><option value="fill">1周目を押出で埋める</option><option value="none">なし（v12まで）</option></select></div>
       <div class="note">らせんの1周目は平らな底面（または台）の上で1周かけて層高ぶん浮いていく。「傾斜の1周」は底面の上に高さ0.2→1層ぶんの坂を1周足し、押出量も高さに合わせる。「押出で埋める」は1周目の押出量を1→2倍に増やしてすき間を埋める。</div>
-      <div class="note">「外へ広げる」は底面だけを線幅×周数ぶん輪郭の外に出す（壁の座り）。「変調なし」は壁の下端からその高さまで太さ・速度・XY・Zの変調を0にし、その上3mmでなめらかに立ち上げる。</div>
+      <div class="note">「外へ広げる」は底面だけを線幅×周数ぶん輪郭の外に出す（壁の座り）。「変調なし」は壁の下端からその高さまで太さ・速度・XYの変調を0にし、その上3mmでなめらかに立ち上げる。</div>
     </section>
 
     <section>
@@ -257,16 +257,6 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="row"><label for="xyMax">上限（ガード）</label><input id="xyMax" type="number" step="0.1" min="0" max="10" value="2"><span class="unit">mm</span></div>
     </section>
 
-    <section>
-      <h2><label class="toggle"><input id="onZ" type="checkbox" checked>Z　層の波打ち</label></h2>
-      <div class="row"><label for="zAmp">振幅</label><input id="zAmp" type="range" min="0" max="0.6" step="0.01" value="0"><span class="val" id="zAmpV">0.00</span><span class="unit">mm</span></div>
-      <div class="row"><label for="zN">周方向の波数</label><input id="zN" type="range" min="0" max="36" step="1" value="4"><span class="val" id="zNV">4</span></div>
-      <div class="row"><label for="zTw">ねじれ</label><input id="zTw" type="range" min="-15" max="15" step="0.5" value="0"><span class="val" id="zTwV">0.0</span><span class="unit">°/mm</span></div>
-      <div class="row"><label for="zWave">波形</label><select id="zWave"><option value="sin">正弦</option><option value="tri">三角</option><option value="sq">なめらか矩形</option><option value="noise">ノイズ</option></select></div>
-      <canvas class="curve" id="curveZ" tabindex="0" aria-label="高さ方向のZ振幅エンベロープ"></canvas>
-      <div class="curvecap"><span>底</span><span>高さ方向の強さ 0〜1</span><span>口</span></div>
-      <div class="note">ガード：|ΔZ| は層高の45%まで。超えた分は切り詰める</div>
-    </section>
 
     <section id="bumpSec"></section>
 
@@ -484,12 +474,11 @@ function wave(kind,ph,theta,h,n,seed){ // ph = n*theta + twist ; returns -1..1
 /* ---------- state ---------- */
 let tris=null, bb=null, contours=null, path=null; // path: {x,y,z,f,w,bad,...}
 const P = {};
-const ids=['slopeOn','slopeMax','fillMode','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','onZ','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','zAmp','zN','zTw','zWave','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
+const ids=['slopeOn','slopeMax','fillMode','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cXY=new Curve($('curveXY'),0,1,[1,1,1,1,1],()=>recompute());
-const cZ=new Curve($('curveZ'),0,1,[1,1,1,1,1],()=>recompute());
 if(window.ClayBump) ClayBump.mount($('bumpSec'),()=>recompute());
 if(window.ClayRim) ClayRim.mount($('rimSec'),()=>recompute()); // shared/rim.js: slanted / wavy / spouted rim // shared/bump.js: image bump section
 const cM=new Curve($('curveM'),0,1,[0,0.25,0.5,0.75,1],()=>reslice());
@@ -756,7 +745,7 @@ function recompute(){ if(!contours) return; readP();
     if(!spiral){ /* close loop by repeating first point */ const p=pts[pts.length-N]; pts.push(Object.assign({},p,{closeDup:true})); }
   }
   // modulation
-  const d2r=Math.PI/180; const fmin=P.fMin,fmax=P.fMax; const zcap=0.45*lh; let clampF=0,clampV=0,clampXY=0,clampZ=0;
+  const d2r=Math.PI/180; const fmin=P.fMin,fmax=P.fMax; let clampF=0,clampV=0,clampXY=0;
   const zWall=(nB+1)*lh, free=P.modFree, rampL=3;
   const baseOf=p=> (P.onV && p.layer===0) ? P.vFirst : P.baseF; // first-layer speed (bottom layer 1, or wall layer 1 without bottom)
   if(window.ClayRim) ClayRim.begin();
@@ -772,9 +761,7 @@ function recompute(){ if(!contours) return; readP();
     let dxy=P.onXY ? P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r*z,th,h,P.xyN,P.seed) : 0;
     dxy*=gs; if(Math.abs(dxy)>P.xyMax){ clampXY++; dxy=Math.sign(dxy)*P.xyMax; }
     if(window.ClayBump) dxy+=ClayBump.disp(th,z,zWall,H)*gs; // image bump (outside the XY guard)
-    let dz=P.onZ ? P.zAmp*cZ.eval(h)*wave(P.zWave,P.zN*th+P.zTw*d2r*z,th,h,P.zN,P.seed+11) : 0;
-    dz*=gs; if(Math.abs(dz)>zcap){ clampZ++; dz=Math.sign(dz)*zcap; }
-    p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z+dz; p.bad=false;
+    p.X=p.x+p.nx*dxy; p.Y=p.y+p.ny*dxy; p.Z=z; p.bad=false;
     if(window.ClayRim){ const r=ClayRim.at(th,z,H,lh); if(r){ p.Z+=r.dz; p.X+=p.nx*r.dxy; p.Y+=p.ny*r.dxy; p.em=(p.em||1)*r.k; p.hh=(p.hh||1)*r.k; /* thicker layer, same bead width: scale E only */ } } }
   // slope compensation (shared/wall.js): widen the bead where the designed wall leans
   const slopeSt = (P.slopeOn&&window.ClayWall)? ClayWall.slope(pts, spiral?N:N+1, Math.max(1,P.slopeMax), P.wMode==='flow') : {n:0,kmax:1};
@@ -783,7 +770,7 @@ function recompute(){ if(!contours) return; readP();
   for(let i=stride;i<pts.length;i++){ const p=pts[i],q=pts[i-stride]; if(p.bottom||q.bottom) continue; const dh=Math.hypot(p.X-q.X,p.Y-q.Y), dz=Math.max(0.05,p.Z-q.Z); if(dh/dz>tanLim){ p.bad=true; ovh++; } }
   // stats
   let len=0,time=0,fmn=1e9,fmx=0,mmn=1e9,mmx=0,rmn=1e9,rmx=0; for(let i=1;i<pts.length;i++){ const p=pts[i],q=pts[i-1]; const s=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z); if(p.travel){ time+=s/P.travelF; continue; } len+=s; time+=s/p.f; if(p.f<fmn)fmn=p.f; if(p.f>fmx)fmx=p.f; if(p.m<mmn)mmn=p.m; if(p.m>mmx)mmx=p.m; if(p.layer>0 && !p.join){ const r=p.f*p.m/P.baseF; if(r<rmn)rmn=r; if(r>rmx)rmx=r; } } if(rmx===0){ rmn=rmx=1; }
-  path={slopeSt,pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,clampZ,ovh,missing:valid.filter(v=>!v).length};
+  path={slopeSt,pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,ovh,missing:valid.filter(v=>!v).length};
   renderStats(); buildMesh(); }
 
 function fmtTime(s){ const m=Math.round(s/60); return m>=60? `${Math.floor(m/60)}時間${String(m%60).padStart(2,'0')}分` : `${m}分`; }
@@ -798,7 +785,6 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(P.onV && P.vFirst!==P.baseF) add('', `初層は ${P.vFirst} mm/s（壁の基準は ${P.baseF} mm/s）`);
   if(p.rmx>1.6||p.rmn<0.5) add('mid', `押出レートが基準の ×${p.rmn.toFixed(2)}–${p.rmx.toFixed(2)}。スクリューの追従と圧に注意`);
   if(p.clampXY) add('mid', `XY変位が上限 ${P.xyMax}mm を超えて ${p.clampXY.toLocaleString()} 点を切り詰め`); else add('', `XY変位は上限内`);
-  if(p.clampZ) add('mid', `Z変位が層高の45%を超えて ${p.clampZ.toLocaleString()} 点を切り詰め`); else add('', `Z変位は層高の45%以内`);
   const wmax=P.lineW*p.mmx; if(wmax>2*P.layerH) add('mid', `最も太い所の線幅見積 ${wmax.toFixed(2)}mm が層高の2倍を超える。盛り上がりに注意`);
   if(p.nB>0 && p.fillZig) add(p.fillTravel>p.nB*6?'mid':'', `底面 ${p.nB} 層のうち ${p.fillZig} 層を「外周＋往復」で充填（線の向きは層ごとに90°回転、持ち上げ移動 ${p.fillTravel} 回）${p.fillZig<p.nB?'。残りは同心らせん':''}`);
   if(p.nB>0 && p.fillZig<p.nB) add('', `底面 ${p.nB-p.fillZig} 層を同心らせんで充填（最大 ${p.fillRings} 周＋中心へ1周${p.bottomWaveMax>0.05?`、外周は壁の波 ±${p.bottomWaveMax.toFixed(2)}mm`:''}${P.bottomExt>0?`＋外へ ${Math.round(P.bottomExt)} 周`:''}）`);
@@ -824,7 +810,7 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x667088,0.9)); const dl=new THREE.
 let grid=null, mesh=null; const target=new THREE.Vector3(0,0,50); let sph={r:260,th:0.9,ph:1.0};
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function colorOf(c){ return new THREE.Color(c); }
-function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper((MP.build&&MP.build.x)||300,Math.round(((MP.build&&MP.build.x)||300)/10),colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); if(path) buildMesh(); }
+function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid){ scene.remove(grid);} grid=new THREE.GridHelper((MP.build&&MP.build.x)||300,Math.round(((MP.build&&MP.build.x)||300)/10),colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); cF.draw(); cV.draw(); cXY.draw(); cM.draw(); drawShapePrev(); drawProfile(); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 // free area of the view: right panel (推定・判定) and bottom bars cover part of the canvas, so the projection centre is shifted into what is left
 function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:200; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
@@ -893,7 +879,7 @@ if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='6
 
 /* ---------- G-code ---------- */
 function gcode(){ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
-  const out=[]; out.push(`; ClayMorph Lab  ${new Date().toISOString().slice(0,16)}`, `; morph bottom ${P.bKind} n${P.bN} a${P.bA} r${P.bR} rot${P.bRot} D${P.dB}${P.bKind==='svg'&&svgShapes.b?' '+svgShapes.b.name:''} -> top ${P.tKind} n${P.tN} a${P.tA} r${P.tR} rot${P.tRot} D${P.dT}${P.tKind==='svg'&&svgShapes.t?' '+svgShapes.t.name:''}`, `; height ${P.hgt}mm  twist ${P.twist}deg  corr ${morphInfo.mode}  profile L ${prof.L.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')} R ${prof.R.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')}  shape curve ${cM.y.map(v=>v.toFixed(2)).join(',')}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}  Z ${P.onZ?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | Z amp ${P.zAmp} n ${P.zN} tw ${P.zTw} ${P.zWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
+  const out=[]; out.push(`; ClayMorph Lab  ${new Date().toISOString().slice(0,16)}`, `; morph bottom ${P.bKind} n${P.bN} a${P.bA} r${P.bR} rot${P.bRot} D${P.dB}${P.bKind==='svg'&&svgShapes.b?' '+svgShapes.b.name:''} -> top ${P.tKind} n${P.tN} a${P.tA} r${P.tR} rot${P.tRot} D${P.dT}${P.tKind==='svg'&&svgShapes.t?' '+svgShapes.t.name:''}`, `; height ${P.hgt}mm  twist ${P.twist}deg  corr ${morphInfo.mode}  profile L ${prof.L.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')} R ${prof.R.map(q=>q.h.toFixed(3)+':'+q.x.toFixed(1)).join(' ')}  shape curve ${cM.y.map(v=>v.toFixed(2)).join(',')}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
   if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
@@ -931,18 +917,18 @@ const view=$('view'); view.addEventListener('dragover',e=>{e.preventDefault();})
 const fmt2=id=>{ const el=$(id); const v=$(id+'V'); if(v) v.textContent=(+el.value).toFixed(el.step&&el.step.includes('.')?2:(el.step==='0.5'?1:0)); };
 for(const id of ids){ const el=$(id); const reslices=['layerH','segs','spiral','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr'].includes(id); const ev = (el.type==='range')?'input':'change';
   el.addEventListener(ev,()=>{ fmt2(id); if(reslices){ clearTimeout(sliceTimer); sliceTimer=setTimeout(reslice,(el.type==='range')?16:120); } else recompute(); }); fmt2(id); }
-$('btnReset').onclick=()=>{ for(const [id,v] of Object.entries({fAmp:0,fN:6,fTw:0,vAmp:0,vN:6,vTw:0,xyAmp:0,xyN:8,xyTw:0,zAmp:0,zN:4,zTw:0})){ $(id).value=v; fmt2(id);} $('xyWave').value='sin'; $('zWave').value='sin'; cF.set([1,1,1,1,1]); cV.set([1,1,1,1,1]); cXY.set([1,1,1,1,1]); cZ.set([1,1,1,1,1]); recompute(); };
-window.addEventListener('resize',()=>{ render(); cF.draw(); cV.draw(); cXY.draw(); cZ.draw(); cM.draw(); drawShapePrev(); drawProfile(); });
+$('btnReset').onclick=()=>{ for(const [id,v] of Object.entries({fAmp:0,fN:6,fTw:0,vAmp:0,vN:6,vTw:0,xyAmp:0,xyN:8,xyTw:0})){ $(id).value=v; fmt2(id);} $('xyWave').value='sin'; cF.set([1,1,1,1,1]); cV.set([1,1,1,1,1]); cXY.set([1,1,1,1,1]); recompute(); };
+window.addEventListener('resize',()=>{ render(); cF.draw(); cV.draw(); cXY.draw(); cM.draw(); drawShapePrev(); drawProfile(); });
 $('colorBy').addEventListener('change',()=>{ if(path) buildMesh(); });
 const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',applyTheme); new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-const dim=()=>{ for(const [id,sec] of [['onF','curveF'],['onV','curveV'],['onXY','curveXY'],['onZ','curveZ']]) $(sec).closest('section').classList.toggle('off',!$(id).checked); };
-['onF','onV','onXY','onZ'].forEach(id=>$(id).addEventListener('change',dim)); dim();
+const dim=()=>{ for(const [id,sec] of [['onF','curveF'],['onV','curveV'],['onXY','curveXY']]) $(sec).closest('section').classList.toggle('off',!$(id).checked); };
+['onF','onV','onXY'].forEach(id=>$(id).addEventListener('change',dim)); dim();
 const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); try{ localStorage.setItem('cpl_info',on?'1':'0'); }catch(e){} };
 btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cpl_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
 ['bKind','tKind'].forEach(id=>$(id).addEventListener('change',kindUI)); kindUI();
 /* ---------- undo / redo ---------- */
 // one snapshot = every control, the five curves, the side profile, the loaded SVGs and the 🔗 state
-const CURVES={F:cF,V:cV,XY:cXY,Z:cZ,M:cM};
+const CURVES={F:cF,V:cV,XY:cXY,M:cM};
 function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; }
   return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()])), b:window.ClayBump?ClayBump.params():null, r:window.ClayRim?ClayRim.params():null, prof:{L:prof.L.map(q=>({...q})),R:prof.R.map(q=>({...q}))}, sym:$('symProf').checked, pair:$('pairH').checked, svg:{b:svgShapes.b,t:svgShapes.t}, lock:$('lockProp').getAttribute('aria-pressed')}; }
 const snapKey=o=>JSON.stringify([o.v,o.c,o.b,o.r,o.prof,o.sym,o.pair,o.svg.b&&o.svg.b.id,o.svg.t&&o.svg.t.id,o.lock]);
