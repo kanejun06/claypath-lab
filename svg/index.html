@@ -190,6 +190,7 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
       <button class="sm" id="btnFit" type="button">全体</button>
       <button class="sm" id="btnTop" type="button">真上</button>
       <button class="sm" id="btnSide" type="button">真横</button>
+      <button class="sm" id="btnProj" type="button" aria-pressed="false" title="平行投影では、どの壁も実際の太さで見える">遠近投影</button>
       <button class="sm" id="btnInfo" type="button" aria-expanded="true" aria-controls="info">推定・判定</button>
     </div>
     <div class="info" id="info">
@@ -545,7 +546,9 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
 
 /* ================= 3D ================= */
 const glc=$('gl'); const renderer=new THREE.WebGLRenderer({canvas:glc,antialias:true}); renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
-const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(35,1,0.5,5000);
+const scene=new THREE.Scene(); const persp=new THREE.PerspectiveCamera(35,1,0.5,5000); const ortho=new THREE.OrthographicCamera(-1,1,1,-1,0.1,10000); let camera=persp;
+// parallel projection: walls keep their true width on screen (perspective shows the side faces of tall walls away from the centre, which looks like extra thickness)
+function setOrtho(on){ camera=on?ortho:persp; const b=$('btnProj'); b.setAttribute('aria-pressed',on?'true':'false'); b.textContent=on?'平行投影':'遠近投影'; }
 scene.add(new THREE.AmbientLight(0xffffff,0.55)); const dl=new THREE.DirectionalLight(0xffffff,0.75); dl.position.set(150,-200,300); scene.add(dl); const dl2=new THREE.DirectionalLight(0xffffff,0.25); dl2.position.set(-200,150,100); scene.add(dl2);
 let grid=null; const target=new THREE.Vector3(); const sph={r:300,th:0.9,ph:1.0};
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
@@ -553,7 +556,9 @@ function colorOf(c){ return new THREE.Color(c); }
 function applyTheme(){ renderer.setClearColor(colorOf(css('--view-bg'))); if(grid) scene.remove(grid); grid=new THREE.GridHelper(300,30,colorOf(css('--view-grid')),colorOf(css('--view-grid'))); grid.rotation.x=Math.PI/2; scene.add(grid); if(path) buildMesh(); }
 function updateCam(){ camera.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th), target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th), target.z+sph.r*Math.cos(sph.ph)); camera.up.set(0,0,1); camera.lookAt(target); }
 function freeArea(){ const w=glc.clientWidth,h=glc.clientHeight; const inf=$('info'); const wide=w>760; const iw=(inf&&!inf.hidden&&wide)? inf.offsetWidth+20 : 0; const top=44, bottom=wide?110:220; return {w,h,iw,top,bottom,aw:w-iw,ah:h-top-bottom}; }
-function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); camera.aspect=w/h; const a=freeArea(); camera.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); camera.updateProjectionMatrix(); }
+function resize(){ const w=glc.clientWidth,h=glc.clientHeight; if(w===0||h===0) return; renderer.setSize(w,h,false); const a=freeArea();
+  persp.aspect=w/h; persp.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); persp.updateProjectionMatrix();
+  const hh=sph.r*Math.tan(persp.fov*Math.PI/360); ortho.left=-hh*w/h; ortho.right=hh*w/h; ortho.top=hh; ortho.bottom=-hh; ortho.setViewOffset(w,h,a.iw/2,(a.bottom-a.top)/2,w,h); ortho.updateProjectionMatrix(); }
 function render(){ resize(); updateCam(); renderer.render(scene,camera); }
 let drag=null; glc.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}; glc.setPointerCapture(e.pointerId); });
 glc.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x,dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
@@ -563,10 +568,11 @@ const endDrag=()=>{drag=null;}; glc.addEventListener('pointerup',endDrag); glc.a
 glc.addEventListener('wheel',e=>{ e.preventDefault(); sph.r=Math.min(2000,Math.max(10,sph.r*Math.exp(e.deltaY*0.0015))); render(); },{passive:false});
 let pinch=null; glc.addEventListener('touchstart',e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); },{passive:true});
 glc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); sph.r=Math.min(2000,Math.max(10,sph.r*pinch/d)); pinch=d; drag=null; render(); } },{passive:true});
-function fit(){ if(!bb) return; target.set((bb.mn[0]+bb.mx[0])/2,(bb.mn[1]+bb.mx[1])/2,bb.mx[2]/2); const a=freeArea(); const t=Math.tan(camera.fov*Math.PI/360);
+function fit(){ if(!bb) return; target.set((bb.mn[0]+bb.mx[0])/2,(bb.mn[1]+bb.mx[1])/2,bb.mx[2]/2); const a=freeArea(); const t=Math.tan(persp.fov*Math.PI/360);
   const W=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]), H=bb.mx[2];
   if(a.w>0&&a.ah>50&&a.aw>50){ const fill=0.85; const vh=H*Math.sin(sph.ph)+W*Math.abs(Math.cos(sph.ph))*0.8; sph.r=Math.max(vh*a.h/(2*t*fill*a.ah), W*a.h/(2*t*fill*a.aw))+W*0.3; } else sph.r=W*2.2; render(); }
-$('btnFit').onclick=()=>{ sph.th=-1.25; sph.ph=0.9; fit(); }; $('btnTop').onclick=()=>{ sph.ph=0.02; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
+$('btnFit').onclick=()=>{ setOrtho(false); sph.th=-1.25; sph.ph=0.9; fit(); }; $('btnTop').onclick=()=>{ setOrtho(true); sph.ph=0.02; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ setOrtho(true); sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
+$('btnProj').onclick=()=>{ setOrtho(camera===persp); render(); };
 
 const CH=12000; let meshes=[], travelLine=null;
 function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispose(); } meshes=[];
