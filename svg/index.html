@@ -67,6 +67,11 @@ button:focus-visible,input:focus-visible,canvas:focus-visible,select:focus-visib
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button.sm{padding:3px 8px;font-size:11px}
 .file{display:flex;gap:6px;flex-wrap:wrap}
+.setbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.setbar .sp{flex:1}
+.setbar button[disabled]{opacity:.4;cursor:default}
+.setbar button.armed{border-color:var(--warn);color:var(--warn)}
+.setbar input{display:none}
 .file input{display:none}
 .stats{display:grid;grid-template-columns:1fr auto;gap:1px 8px;font-size:11.5px}
 .stats dt{color:var(--fg2)}
@@ -109,6 +114,16 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
 
 <div class="app">
   <div class="panel side" id="left">
+    <div class="setbar">
+      <button class="sm" id="btnUndo" type="button" title="元に戻す（⌘Z / Ctrl+Z）" aria-label="元に戻す" disabled>↶</button>
+      <button class="sm" id="btnRedo" type="button" title="やり直す（⇧⌘Z / Ctrl+Y）" aria-label="やり直す" disabled>↷</button>
+      <span class="sp"></span>
+      <button class="sm" id="btnSetSave" type="button" title="設定とSVGをファイルに保存（⌘S / Ctrl+S）">設定を保存</button>
+      <button class="sm" id="btnSetLoad" type="button" title="保存した設定ファイルを開く">読み込み</button>
+      <input id="setIn" type="file" accept=".json,application/json,.txt">
+      <button class="sm" id="btnSetReset" type="button" title="設定を最初の値に戻す（SVGはそのまま）">リセット</button>
+    </div>
+    <div class="msg" id="setMsg" style="margin-top:-8px"></div>
     <section>
       <h2>SVG</h2>
       <div class="file">
@@ -688,7 +703,7 @@ $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) read
 function useSampleFrame(){ $('frameMode').value='rect'; $('frameW').value=90; $('frameD').value=60; $('frameR').value=0; frameUI(); }
 function frameUI(){ const m=$('frameMode').value; document.querySelectorAll('.frameRect').forEach(e=>e.hidden=m!=='rect'); document.querySelectorAll('.frameCirc').forEach(e=>e.hidden=m!=='circle'); }
 $('frameMode').addEventListener('change',frameUI);
-$('btnSample').onclick=()=>{ useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true); };
+$('btnSample').onclick=()=>{ useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true); if(typeof record==='function') record(); };
 const view=$('view'); view.addEventListener('dragover',e=>{ e.preventDefault(); view.classList.add('dragging'); }); view.addEventListener('dragleave',e=>{ if(e.target===view||!view.contains(e.relatedTarget)) view.classList.remove('dragging'); });
 view.addEventListener('drop',e=>{ e.preventDefault(); view.classList.remove('dragging'); const f=e.dataTransfer.files[0]; if(f&&/\.svg$/i.test(f.name)) readFile(f); });
 let timer=0, needParse=false; const reparse=new Set(['pxUnit','scale','sx','sy','step']);
@@ -698,7 +713,44 @@ const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?
 const infoEl=$('info'), btnInfo=$('btnInfo'); const setInfo=on=>{ infoEl.hidden=!on; btnInfo.setAttribute('aria-expanded',on?'true':'false'); btnInfo.textContent=on?'推定・判定を隠す':'推定・判定を表示'; try{ localStorage.setItem('cll_info',on?'1':'0'); }catch(e){} };
 btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=localStorage.getItem('cll_info'); }catch(e){} setInfo(v===null ? !matchMedia('(max-width:760px)').matches : v==='1'); }
 if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='60';
+/* ================= settings: save / load / reset / undo / redo ================= */
+const SKEYS=ids.concat(['lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'].filter(k=>!ids.includes(k)));
+const TKEYS=['gStart','gEnd'];
+function snap(){ const o={}; for(const k of SKEYS){ const el=$(k); if(el) o[k]= el.type==='checkbox'? el.checked : el.value; } return o; }
+function applySnap(o,withText){ for(const k of SKEYS){ if(!(k in o)) continue; const el=$(k); if(!el) continue; if(el.type==='checkbox') el.checked=!!o[k]; else el.value=o[k]; }
+  if(withText) for(const k of TKEYS) if(typeof o[k]==='string') $(k).value=o[k];
+  frameUI(); clearTimeout(timer); needParse=false; if(svgText) loadText(svgText,svgName,false); }
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+let defaults=null; const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
+function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
+function record(){ if(applying) return; const s=snap(); if(hist.cur && same(s,hist.cur)) return; if(hist.cur) hist.past.push(hist.cur); if(hist.past.length>200) hist.past.shift(); hist.cur=s; hist.future=[]; histUI(); }
+function undo(){ clearTimeout(histTimer); record(); if(!hist.past.length) return; hist.future.push(hist.cur); hist.cur=hist.past.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('元に戻しました'); }
+function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) return; hist.past.push(hist.cur); hist.cur=hist.future.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('やり直しました'); }
+function setSetMsg(t,cls){ const m=$('setMsg'); m.textContent=t; m.className='msg '+(cls||''); clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },3000); }
+for(const k of SKEYS){ const el=$(k); if(!el) continue; el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); }); }
+$('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
+// save: settings + G-code start/end + the SVG itself, as one JSON file
+$('btnSetSave').onclick=()=>{ const o={app:'ClayLine Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),svg:svgText?{name:svgName,text:svgText}:null};
+  saveText(safe($('fname').value)+'_settings','json',JSON.stringify(o,null,1)).then(()=>setSetMsg($('msg').textContent,$('msg').className.replace('msg','').trim())); };
+$('btnSetLoad').onclick=()=>$('setIn').click();
+$('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>{ let o; try{ o=JSON.parse(r.result); }catch(err){ setSetMsg('設定ファイルとして読めませんでした（JSON ではありません）','err'); return; }
+    if(!o||!o.settings){ setSetMsg('ClayLine Lab の設定ファイルではありません','err'); return; }
+    record(); applying=true;
+    if(o.svg&&o.svg.text){ try{ svgText=o.svg.text; svgName=o.svg.name||'saved.svg'; }catch(_){} }
+    applySnap(Object.assign({},o.settings,o.text||{}),true); if(o.svg&&o.svg.text){ $('fname').value=safe(svgName.replace(/\.svg$/i,'')); sph.th=-1.25; sph.ph=0.9; fit(); }
+    applying=false; record(); setSetMsg(`${f.name} を読み込みました${o.svg?'（SVG も復元）':''}`,'ok'); }; r.readAsText(f); });
+// reset: two-step button (no confirm dialog in the viewer)
+let resetArm=0; $('btnSetReset').onclick=()=>{ const b=$('btnSetReset'); if(!resetArm){ b.classList.add('armed'); b.textContent='もう一度押すとリセット'; resetArm=setTimeout(()=>{ b.classList.remove('armed'); b.textContent='リセット'; resetArm=0; },3000); return; }
+  clearTimeout(resetArm); resetArm=0; b.classList.remove('armed'); b.textContent='リセット'; record(); applying=true; applySnap(Object.assign({},defaults.s,defaults.t),true); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); };
+// shortcuts: leave text areas and the file-name box to the browser's own undo
+document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));
+  const k=e.key.toLowerCase();
+  if(k==='s'){ e.preventDefault(); $('btnSetSave').click(); return; }
+  if(native) return;
+  if(k==='z' && !e.shiftKey){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); undo(); }
+  else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
 applyTheme(); useSampleFrame(); loadText(sampleSVGText(),'sample_tray.svg',true);
+defaults={s:snap(),t:Object.fromEntries(TKEYS.map(k=>[k,$(k).value]))}; record();
 window.__cll={gcode:()=>gcode(),get path(){return path;},get checks(){return checks;},get src(){return src;},loadText};
 })();
 </script>
