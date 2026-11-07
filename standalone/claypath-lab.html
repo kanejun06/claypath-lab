@@ -563,7 +563,7 @@ function html(){ return `
   <div class="row"><label for="rimZone">変化させる高さ（0＝自動）</label><input id="rimZone" type="number" step="1" min="0" max="300" value="0"><span class="unit">mm</span></div>
   <div class="note" id="rimInfo"></div>
   <div class="note">口から「変化させる高さ」ぶん下までのあいだで、層の厚みを周方向に少しずつ変えて縁を傾ける（層が平らでなくなる）。高さの差が大きいほど、変化させる高さも長く必要（自動では層の厚みの変化が ±40% 以内になる長さ）。斜め・波は元の高さから±この値、注ぎ口は一か所だけこの値（マイナスで低くなる）。押出は層の厚みに合わせて増減する。</div>`; }
-function css(){ const st=document.createElement('style'); st.textContent='.rimprev{display:block;width:100%;height:70px;border:1px solid var(--line);border-radius:4px;background:var(--bg);margin-top:4px}'; document.head.appendChild(st); }
+function css(){ const st=document.createElement('style'); st.textContent='#rimSec .row[hidden]{display:none}.rimprev{display:block;width:100%;height:70px;border:1px solid var(--line);border-radius:4px;background:var(--bg);margin-top:4px}'; document.head.appendChild(st); }
 function readUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; S[k]= el.type==='checkbox'? el.checked : el.tagName==='SELECT'? el.value : +el.value; } }
 function writeUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!S[k]; else el.value=S[k]; const v=$(id+'V'); if(v) v.textContent= (k==='amp'||k==='out')? (+S[k]).toFixed(1) : String(S[k]); }
   const sh=(id,on)=>{ const e=$(id); if(e) e.hidden=!on; }; sh('rimNRow',S.kind==='wave'); sh('rimWidthRow',S.kind==='spout'); sh('rimOutRow',S.kind==='spout'); }
