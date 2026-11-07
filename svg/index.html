@@ -584,9 +584,9 @@ function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispos
   // one quad tube per drawn segment (i-1 -> i); width, height and colour come from the segment itself (point i),
   // so a wall that starts where a no-extrusion join ended is not drawn tapered. Ring positions use the averaged direction at each point.
   // offset direction at point j for the segment whose unit normal is (sx,sy): a mitre with the neighbouring segment when the corner
-  // is not too sharp (keeps the tube's true width along the whole segment), otherwise the segment's own normal
+  // keeps the tube's true width along the whole segment; for very sharp tips the mitre length is capped
   const segN=(i)=>{ const a=pts[i-1], b=pts[i]; const dx=b.X-a.X, dy=b.Y-a.Y; const l=Math.hypot(dx,dy)||1; return [-dy/l, dx/l]; };
-  const nrm=(j,own,other)=>{ if(!other) return own; let mx=own[0]+other[0], my=own[1]+other[1]; const ml=Math.hypot(mx,my); if(ml<1e-6) return own; mx/=ml; my/=ml; const c=mx*own[0]+my*own[1]; if(c<0.5) return own; return [mx/c, my/c]; };
+  const nrm=(j,own,other)=>{ if(!other) return own; let mx=own[0]+other[0], my=own[1]+other[1]; const ml=Math.hypot(mx,my); if(ml<1e-6) return own; mx/=ml; my/=ml; const c=mx*own[0]+my*own[1]; const k=Math.min(1/Math.max(c,1e-6), 2.5); return [mx*k, my*k]; };  // mitre, length capped at 2.5x half-width so very sharp tips stay joined
   for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*8*3), col=new Float32Array(cn*8*3); const idx=[]; const idxEnd=new Uint32Array(cn);
     for(let i=c0;i<c1;i++){ const li=i-c0; const p=pts[i];
       if(i>0 && !p.travel && !p.nd && !p.glide){ const q=pts[i-1]; const em=p.em==null?1:p.em; const hw=P.lineW*p.m*Math.max(0.35,Math.sqrt(em||0.12))/2; const dz=lh*(em<1?0.6:1); const cc=kc[p.kind]||kc.wall;
