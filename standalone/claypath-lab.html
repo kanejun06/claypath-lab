@@ -63,6 +63,14 @@ header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bott
 .playbar select{font:inherit;font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .playbar .t{flex:0 0 44ch;width:44ch;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
 @media (max-width:900px){ .playbar{flex-wrap:wrap} .playbar input[type=range]{flex:1 1 60%} .playbar .t{flex:1 0 100%;width:auto;text-align:left} }
+.setbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.setbar .sp{flex:1}
+.setbar button[disabled]{opacity:.4;cursor:default}
+.setbar button.armed{border-color:var(--warn);color:var(--warn)}
+.setbar .setopt{font-weight:400;font-size:11px;color:var(--fg2)}
+.setbar .msg{flex:1 0 100%;min-width:0;color:var(--fg2)}
+.setbar .msg:empty{display:none}
+.setbar .msg.err{color:var(--warn)}
 section h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--fg2);margin:0 0 6px}
 .row{display:flex;align-items:center;gap:8px;margin:4px 0}
 .row label{flex:1;min-width:0}
@@ -129,6 +137,17 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
 <div class="app">
   <!-- ========== LEFT: parameters ========== -->
   <div class="panel side" id="left">
+    <div class="setbar">
+      <button class="sm" id="btnUndo" type="button" title="元に戻す（⌘Z / Ctrl+Z）" aria-label="元に戻す" disabled>↶</button>
+      <button class="sm" id="btnRedo" type="button" title="やり直す（⇧⌘Z / Ctrl+Y）" aria-label="やり直す" disabled>↷</button>
+      <span class="sp"></span>
+      <button class="sm" id="btnSetSave" type="button" title="設定（とSTL）をファイルに保存（⌘S / Ctrl+S）">設定を保存</button>
+      <button class="sm" id="btnSetLoad" type="button" title="保存した設定ファイルを開く">読み込み</button>
+      <input id="setIn" type="file" accept=".json,application/json,.txt" hidden>
+      <button class="sm" id="btnSetReset" type="button" title="設定を最初の値に戻す（STLはそのまま）">リセット</button>
+      <label class="toggle setopt" title="設定ファイルに読み込んだSTLも入れる（開くだけで同じ形に戻せる。STLが大きいとファイルも大きくなる）"><input id="setStl" type="checkbox" checked>STLも保存</label>
+      <span class="msg" id="setMsg" aria-live="polite"></span>
+    </div>
     <section>
       <h2>モデル</h2>
       <div class="file">
@@ -456,6 +475,33 @@ function bottom(o){ const {contours,N,nB,lh,H,spiral,pitch,wallDxy,pts}=o; o.fil
 return {bottom, hatchSegs, inPoly};
 })();
 </script>
+<script>/* ---- inlined from shared/settings.js ---- */
+/* ClayPath Lab / ClayMorph Lab — helpers for saving and loading settings files
+ * A settings file is JSON: {app, version, saved, settings, text:{gStart,gEnd}, ...model}. Machine values in it are
+ * ignored for students (shared/printer.js puts the profile back after loading).
+ */
+window.ClaySettings=(function(){
+"use strict";
+let dl; async function getDl(){ if(dl===undefined){ try{ dl = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dl=null; } } return dl; }
+// download text as base.ext; returns a message for the page to show
+async function saveText(base,ext,txt){ const kb=(txt.length/1024).toFixed(0); const d=await getDl();
+  if(d){ try{ await d.save({filename:`${base}_${ext}.txt`,data:txt}); return {ok:true,msg:`保存しました（${kb} KB）。拡張子を .${ext} に直して使用`}; }catch(e){ return {ok:false,msg:e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした：'+(e&&e.message||e)}; } }
+  try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=`${base}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); return {ok:true,msg:`${base}.${ext} を書き出しました（${kb} KB）`}; }
+  catch(e){ return {ok:false,msg:'この表示では保存できません'}; } }
+function toB64(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+function fromB64(b64){ const s=atob(b64); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u.buffer; }
+// read a chosen file as JSON settings of this app
+function readFile(file,app,cb){ const r=new FileReader(); r.onload=()=>{ let o; try{ o=JSON.parse(r.result); }catch(e){ cb(null,'設定ファイルとして読めませんでした（JSON ではありません）'); return; }
+    if(!o||!o.settings){ cb(null,`${app} の設定ファイルではありません`); return; }
+    if(o.app && o.app!==app){ cb(null,`${o.app} の設定ファイルです（${app} では読めません）`); return; }
+    cb(o,null); }; r.readAsText(file); }
+// two-step button instead of a confirm dialog
+function twoStep(btn,label,armedLabel,fn){ let t=0; btn.onclick=()=>{ if(!t){ btn.classList.add('armed'); btn.textContent=armedLabel; t=setTimeout(()=>{ btn.classList.remove('armed'); btn.textContent=label; t=0; },3000); return; }
+  clearTimeout(t); t=0; btn.classList.remove('armed'); btn.textContent=label; fn(); }; }
+const safe=s=>(s||'clay').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_');
+return {saveText,toB64,fromB64,readFile,twoStep,safe};
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -752,7 +798,8 @@ $('btnSave').onclick=async()=>{ if(!path) return; const name=($('fname').value||
 $('btnCopy').onclick=async()=>{ if(!path) return; const txt=gcode(); try{ await navigator.clipboard.writeText(txt); setMsg(`G-codeをコピーしました（${(txt.length/1024).toFixed(0)} KB）`,'ok'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); setMsg('コピーしました','ok'); }catch(_){ setMsg('コピーできませんでした','err'); } ta.remove(); } };
 
 /* ---------- load ---------- */
-function loadBuffer(buf,name){ tris=parseSTL(buf); bb=bounds(tris); const dx=bb.mx[0]-bb.mn[0],dy=bb.mx[1]-bb.mn[1],dz=bb.mx[2]-bb.mn[2];
+let stlSrc=null; // {name, buf} of the loaded STL, for settings files
+function loadBuffer(buf,name){ stlSrc={name,buf}; tris=parseSTL(buf); bb=bounds(tris); const dx=bb.mx[0]-bb.mn[0],dy=bb.mx[1]-bb.mn[1],dz=bb.mx[2]-bb.mn[2];
   $('modelInfo').textContent=`${name}：${(tris.length/9).toLocaleString()} 面、${dx.toFixed(1)}×${dy.toFixed(1)}×${dz.toFixed(1)} mm`;
   if(bb.mn[2]!==0){ for(let i=2;i<tris.length;i+=3) tris[i]-=bb.mn[2]; bb=bounds(tris); }
   $('fname').value=name.replace(/\.stl$/i,'').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_')||'claypath';
@@ -779,5 +826,44 @@ btnInfo.onclick=()=>{ setInfo(infoEl.hidden); render(); }; { let v=null; try{ v=
 applyTheme(); loadSample();
 // demo preset so the first view shows what the tool does
 $('xyAmp').value=1.2; $('xyN').value=10; $('xyTw').value=3; $('fAmp').value=0.25; $('fN').value=10; $('fTw').value=3; ['xyAmp','xyN','xyTw','fAmp','fN','fTw'].forEach(fmt2); cXY.set([0.1,0.5,1,0.7,0.2]); recompute();
+/* ---------- undo / redo / settings file ---------- */
+// one snapshot = every control and the four curves (the STL itself is not part of undo)
+const CURVES={F:cF,V:cV,XY:cXY,Z:cZ}; const TKEYS=['gStart','gEnd'];
+function snap(){ const v={}; for(const k of ids){ const el=$(k); v[k]= el.type==='checkbox'? el.checked : el.value; } return {v, c:Object.fromEntries(Object.entries(CURVES).map(([k,c])=>[k,c.y.slice()]))}; }
+const snapKey=o=>JSON.stringify([o.v,o.c]);
+function applySnap(o){ for(const k of ids){ const el=$(k); if(!(k in o.v)) continue; if(el.type==='checkbox') el.checked=!!o.v[k]; else el.value=o.v[k]; fmt2(k); }
+  for(const [k,c] of Object.entries(CURVES)) if(o.c&&o.c[k]) c.set(o.c[k]);
+  if(window.ClayPrinter) ClayPrinter.reapply(); dim(); reslice(); }
+const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
+function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
+function setSetMsg(t,cls){ const m=$('setMsg'); m.textContent=t; m.className='msg '+(cls||''); clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },cls==='err'?6000:3000); }
+function record(){ if(applying) return; const s=snap(); if(hist.cur && snapKey(s)===snapKey(hist.cur)) return; if(hist.cur) hist.past.push(hist.cur); if(hist.past.length>200) hist.past.shift(); hist.cur=s; hist.future=[]; histUI(); }
+function undo(){ clearTimeout(histTimer); record(); if(!hist.past.length) return; hist.future.push(hist.cur); hist.cur=hist.past.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('元に戻しました'); }
+function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) return; hist.past.push(hist.cur); hist.cur=hist.future.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('やり直しました'); }
+const later=()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); };
+for(const ev of ['input','change','pointerup','click','dblclick','keyup']) $('left').addEventListener(ev,later);
+$('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
+$('btnSetSave').onclick=async()=>{ const withStl=$('setStl').checked && stlSrc;
+  const o={app:'ClayPath Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null,
+    stl: withStl? {name:stlSrc.name, base64:ClaySettings.toB64(stlSrc.buf)} : (stlSrc? {name:stlSrc.name}:null)};
+  const r=await ClaySettings.saveText(ClaySettings.safe($('fname').value)+'_settings','json',JSON.stringify(o,null,1)); setSetMsg(r.msg+(withStl?'（STL 込み）':''),r.ok?'ok':'err'); };
+$('btnSetLoad').onclick=()=>$('setIn').click();
+$('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  ClaySettings.readFile(f,'ClayPath Lab',(o,err)=>{ if(err){ setSetMsg(err,'err'); return; }
+    record(); applying=true; let stlMsg='';
+    if(o.stl&&o.stl.base64){ try{ loadBuffer(ClaySettings.fromB64(o.stl.base64),o.stl.name||'saved.stl'); stlMsg='（STL も復元）'; }catch(_){ stlMsg='（STL は読めませんでした）'; } }
+    else if(o.stl&&o.stl.name) stlMsg=`（STL は入っていません。${o.stl.name} を読み込んでください）`;
+    for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
+    applySnap(o.settings); applying=false; record(); setSetMsg(`${f.name} を読み込みました${stlMsg}`,'ok'); }); });
+let defaults=snap(); hist.cur=null; record();
+ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(defaults); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
+// shortcuts: leave text areas and the file-name box to the browser's own undo
+document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));
+  const k=e.key.toLowerCase();
+  if(k==='s'){ e.preventDefault(); $('btnSetSave').click(); return; }
+  if(native) return;
+  if(k==='z' && !e.shiftKey){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); undo(); }
+  else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
+
 })();
 </script>

@@ -75,7 +75,11 @@ header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bott
 .sizebox .lock[aria-pressed="false"]{opacity:.45;filter:grayscale(1)}
 .setbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .setbar button[disabled]{opacity:.4;cursor:default}
-.setbar .msg{flex:1;min-width:0;color:var(--fg2)}
+.setbar .sp{flex:1}
+.setbar .msg{flex:1 0 100%;min-width:0;color:var(--fg2)}
+.setbar .msg:empty{display:none}
+.setbar .msg.err{color:var(--warn)}
+.setbar button.armed{border-color:var(--warn);color:var(--warn)}
 .subh{font-size:12px;font-weight:600;margin:10px 0 2px;padding-top:6px;border-top:1px solid var(--line)}
 .row[hidden]{display:none}
 .svgrow .note{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -148,6 +152,11 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
     <div class="setbar">
       <button class="sm" id="btnUndo" type="button" title="元に戻す（⌘Z / Ctrl+Z）" aria-label="元に戻す" disabled>↶</button>
       <button class="sm" id="btnRedo" type="button" title="やり直す（⇧⌘Z / Ctrl+Y）" aria-label="やり直す" disabled>↷</button>
+      <span class="sp"></span>
+      <button class="sm" id="btnSetSave" type="button" title="設定と読み込んだSVGをファイルに保存（⌘S / Ctrl+S）">設定を保存</button>
+      <button class="sm" id="btnSetLoad" type="button" title="保存した設定ファイルを開く">読み込み</button>
+      <input id="setIn" type="file" accept=".json,application/json,.txt" hidden>
+      <button class="sm" id="btnSetReset" type="button" title="設定を最初の値に戻す（読み込んだSVGは残る）">リセット</button>
       <span class="msg" id="setMsg" aria-live="polite"></span>
     </div>
     <section>
@@ -516,6 +525,33 @@ function bottom(o){ const {contours,N,nB,lh,H,spiral,pitch,wallDxy,pts}=o; o.fil
       pts.push({x,y,z,theta:Math.atan2(dy,dx),h:z/H,nx:dx/dd,ny:dy/dd,layer:k,bottom:true,bm,travel:s===0&&pts.length>0}); } }
   return {lastC,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax}; }
 return {bottom, hatchSegs, inPoly};
+})();
+</script>
+<script>/* ---- inlined from shared/settings.js ---- */
+/* ClayPath Lab / ClayMorph Lab — helpers for saving and loading settings files
+ * A settings file is JSON: {app, version, saved, settings, text:{gStart,gEnd}, ...model}. Machine values in it are
+ * ignored for students (shared/printer.js puts the profile back after loading).
+ */
+window.ClaySettings=(function(){
+"use strict";
+let dl; async function getDl(){ if(dl===undefined){ try{ dl = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dl=null; } } return dl; }
+// download text as base.ext; returns a message for the page to show
+async function saveText(base,ext,txt){ const kb=(txt.length/1024).toFixed(0); const d=await getDl();
+  if(d){ try{ await d.save({filename:`${base}_${ext}.txt`,data:txt}); return {ok:true,msg:`保存しました（${kb} KB）。拡張子を .${ext} に直して使用`}; }catch(e){ return {ok:false,msg:e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした：'+(e&&e.message||e)}; } }
+  try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=`${base}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); return {ok:true,msg:`${base}.${ext} を書き出しました（${kb} KB）`}; }
+  catch(e){ return {ok:false,msg:'この表示では保存できません'}; } }
+function toB64(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+function fromB64(b64){ const s=atob(b64); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u.buffer; }
+// read a chosen file as JSON settings of this app
+function readFile(file,app,cb){ const r=new FileReader(); r.onload=()=>{ let o; try{ o=JSON.parse(r.result); }catch(e){ cb(null,'設定ファイルとして読めませんでした（JSON ではありません）'); return; }
+    if(!o||!o.settings){ cb(null,`${app} の設定ファイルではありません`); return; }
+    if(o.app && o.app!==app){ cb(null,`${o.app} の設定ファイルです（${app} では読めません）`); return; }
+    cb(o,null); }; r.readAsText(file); }
+// two-step button instead of a confirm dialog
+function twoStep(btn,label,armedLabel,fn){ let t=0; btn.onclick=()=>{ if(!t){ btn.classList.add('armed'); btn.textContent=armedLabel; t=setTimeout(()=>{ btn.classList.remove('armed'); btn.textContent=label; t=0; },3000); return; }
+  clearTimeout(t); t=0; btn.classList.remove('armed'); btn.textContent=label; fn(); }; }
+const safe=s=>(s||'clay').replace(/[^\w\-一-龠ぁ-んァ-ヶー]/g,'_');
+return {saveText,toB64,fromB64,readFile,twoStep,safe};
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1073,10 +1109,11 @@ function applySnap(o){ for(const k of ids){ const el=$(k); if(el.type==='checkbo
   for(const [k,c] of Object.entries(CURVES)) c.set(o.c[k]); prof={L:o.prof.L.map(q=>({...q})),R:o.prof.R.map(q=>({...q}))}; $('symProf').checked=!!o.sym; $('pairH').checked=o.pair!==false; window.__pairUI&&window.__pairUI(); profSel=null;
   for(const sd of ['b','t']){ svgShapes[sd]=o.svg[sd]; $(sd+'SvgName').textContent= svgShapes[sd]? svgShapes[sd].name : ''; }
   const lb=$('lockProp'); const on=o.lock==='true'; lb.setAttribute('aria-pressed',on?'true':'false'); lb.textContent=on?'🔗':'⛓️‍💥';
+  if(window.ClayPrinter) ClayPrinter.reapply();
   profLastH=+$('hgt').value; kindUI(); dim(); reslice(); }
 const hist={past:[],cur:null,future:[]}; let applying=false, histTimer=0;
 function histUI(){ $('btnUndo').disabled=!hist.past.length; $('btnRedo').disabled=!hist.future.length; }
-function setSetMsg(t){ const m=$('setMsg'); m.textContent=t; clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },2000); }
+function setSetMsg(t,cls){ const m=$('setMsg'); m.textContent=t; m.className='msg '+(cls||''); clearTimeout(setSetMsg.t); setSetMsg.t=setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },cls==='err'?6000:3000); }
 function record(){ if(applying) return; const s=snap(); if(hist.cur && snapKey(s)===snapKey(hist.cur)) return; if(hist.cur) hist.past.push(hist.cur); if(hist.past.length>200) hist.past.shift(); hist.cur=s; hist.future=[]; histUI(); }
 function undo(){ clearTimeout(histTimer); record(); if(!hist.past.length) return; hist.future.push(hist.cur); hist.cur=hist.past.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('元に戻しました'); }
 function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) return; hist.past.push(hist.cur); hist.cur=hist.future.pop(); applying=true; applySnap(hist.cur); applying=false; histUI(); setSetMsg('やり直しました'); }
@@ -1084,13 +1121,29 @@ function redo(){ clearTimeout(histTimer); record(); if(!hist.future.length) retu
 const later=()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); };
 for(const ev of ['input','change','pointerup','click','dblclick','keyup']) $('left').addEventListener(ev,later);
 $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
+/* ---------- settings file: save / load / reset ---------- */
+let defaults=null; // snapshot right after start-up
+const TKEYS=['gStart','gEnd'];
+function settingsObj(){ const o=snap(); const svg={}; for(const sd of ['b','t']){ const v=o.svg[sd]; svg[sd]= v? {name:v.name,loop:v.loop.map(p=>[p[0],p[1]])} : null; }
+  delete o.svg; return {app:'ClayMorph Lab',version:1,saved:new Date().toISOString(),settings:o,svg,text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null}; }
+$('btnSetSave').onclick=async()=>{ const r=await ClaySettings.saveText(ClaySettings.safe($('fname').value)+'_settings','json',JSON.stringify(settingsObj(),null,1)); setSetMsg(r.msg,r.ok?'ok':'err'); };
+$('btnSetLoad').onclick=()=>$('setIn').click();
+$('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  ClaySettings.readFile(f,'ClayMorph Lab',(o,err)=>{ if(err){ setSetMsg(err,'err'); return; }
+    const svg={}; for(const sd of ['b','t']){ const v=o.svg&&o.svg[sd]; svg[sd]= v&&v.loop&&v.loop.length>2 ? {name:v.name||'saved.svg',loop:v.loop,id:++svgSeq} : null; }
+    for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
+    record(); applying=true; applySnap(Object.assign({},o.settings,{svg})); applying=false; record();
+    setSetMsg(`${f.name} を読み込みました${svg.b||svg.t?'（SVG も復元）':''}`,'ok'); }); });
+ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(Object.assign({},defaults,{svg:{b:svgShapes.b,t:svgShapes.t}})); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
 // shortcuts: leave text areas and the file-name box to the browser's own undo
 document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));
-  if(native) return; const k=e.key.toLowerCase();
+  const k=e.key.toLowerCase();
+  if(k==='s'){ e.preventDefault(); $('btnSetSave').click(); return; }
+  if(native) return;
   if(k==='z' && !e.shiftKey){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); undo(); }
   else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); if(t&&t.blur&&t.tagName==='INPUT') t.blur(); redo(); } });
 $('fname').value='claymorph';
-reslice(); applyTheme(); sph.th=0.9; sph.ph=1.38; fit(); record();
+reslice(); applyTheme(); sph.th=0.9; sph.ph=1.38; fit(); record(); defaults=snap();
 window.ClayMorph={profView, profile:()=>prof, sideX}; // for scripted checks
 })();
 </script>
