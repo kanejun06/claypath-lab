@@ -371,10 +371,11 @@ M82 ;absolute extrusion mode</textarea>
  */
 (function(){
 "use strict";
+// order = the order the course introduces them: draw the path → modulate a given form → generate the form
 const TOOLS=[
-  {name:'ClayPath Lab', sub:'STLから', dir:''},
-  {name:'ClayLine Lab', sub:'SVGの線から', dir:'svg/'},
-  {name:'ClayMorph Lab', sub:'断面の変化から', dir:'morph/'},
+  {name:'ClayLine Lab', sub:'SVGの線から', dir:'svg/', file:'clayline-lab.html'},
+  {name:'ClayPath Lab', sub:'STLから', dir:'', file:'claypath-lab.html'},
+  {name:'ClayMorph Lab', sub:'断面の変化から', dir:'morph/', file:'claymorph-lab.html'},
 ];
 const me=document.currentScript; const root=(me&&me.src||'').replace(/shared\/nav\.js(\?.*)?$/,'');
 function build(){ const hd=document.querySelector('header'); if(!hd) return;
@@ -391,7 +392,7 @@ function build(){ const hd=document.querySelector('header'); if(!hd) return;
   // single-file builds (standalone/) set window.ClayNavFiles to their sibling file names
   const files=window.ClayNavFiles; const page=location.pathname.split('/').pop();
   TOOLS.forEach((t,i)=>{ const a=document.createElement('a');
-    if(files){ a.href=files[i]+location.search+location.hash; if(page===files[i]) a.setAttribute('aria-current','page'); }
+    if(files){ a.href=t.file+location.search+location.hash; if(page===t.file) a.setAttribute('aria-current','page'); }
     else { const url=root+t.dir; a.href=url+(location.protocol==='file:'?'index.html':'')+location.search+location.hash; if(here===url) a.setAttribute('aria-current','page'); } // file:// does not serve a folder's index.html
     a.innerHTML=`${t.name}<small>${t.sub}</small>`; nav.appendChild(a); });
   // header: title and description first, tabs to the right
