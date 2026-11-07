@@ -574,19 +574,24 @@ function fit(){ if(!bb) return; target.set((bb.mn[0]+bb.mx[0])/2,(bb.mn[1]+bb.mx
 $('btnFit').onclick=()=>{ setOrtho(false); sph.th=-1.25; sph.ph=0.9; fit(); }; $('btnTop').onclick=()=>{ setOrtho(true); sph.ph=0.02; sph.th=-Math.PI/2; fit(); }; $('btnSide').onclick=()=>{ setOrtho(true); sph.ph=Math.PI/2; sph.th=-Math.PI/2; fit(); };
 $('btnProj').onclick=()=>{ setOrtho(camera===persp); render(); };
 
-const CH=12000; let meshes=[], travelLine=null;
+const CH=8000; let meshes=[], travelLine=null;
 function buildMesh(){ for(const m of meshes){ scene.remove(m); m.geometry.dispose(); } meshes=[];
   if(travelLine){ scene.remove(travelLine); travelLine.geometry.dispose(); travelLine=null; }
   const pts=path.pts, n=pts.length, lh=P.layerH;
   const kc={wall:colorOf(css('--k-wall')),frame:colorOf(css('--k-frame')),join:colorOf(css('--k-join')),fill:colorOf(css('--k-fill'))};
   const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.75,metalness:0.0,side:THREE.DoubleSide});
   const sameRun=(i,j)=> j>=0 && j<n && !(pts[Math.max(i,j)].travel) && !(pts[Math.max(i,j)].nd) && !(pts[Math.max(i,j)].glide);
-  for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*4*3), col=new Float32Array(cn*4*3); const idx=[]; const idxEnd=new Uint32Array(cn);
-    for(let i=c0;i<c1;i++){ const p=pts[i]; const a=sameRun(i,i-1)?pts[i-1]:p, b=sameRun(i,i+1)?pts[i+1]:p; let tx=b.X-a.X, ty=b.Y-a.Y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl; const nx=-ty, ny=tx;
-      const em=p.em==null?1:p.em; const w=P.lineW*p.m*Math.max(0.35,Math.sqrt(em||0.12)); const hw=w/2; const zt=p.Z, zb=p.Z-lh*(em<1?0.6:1); const li=i-c0;
-      const v=[[p.X+nx*hw,p.Y+ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zt],[p.X-nx*hw,p.Y-ny*hw,zb],[p.X+nx*hw,p.Y+ny*hw,zb]]; const cc=kc[p.kind]||kc.wall;
-      for(let k=0;k<4;k++){ const o=(li*4+k)*3; pos[o]=v[k][0]; pos[o+1]=v[k][1]; pos[o+2]=v[k][2]; col[o]=cc.r; col[o+1]=cc.g; col[o+2]=cc.b; }
-      if(li>0 && !p.travel && !p.nd && !p.glide){ const A=(li-1)*4,B=li*4; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } } idxEnd[li]=idx.length; }
+  // one quad tube per drawn segment (i-1 -> i); width, height and colour come from the segment itself (point i),
+  // so a wall that starts where a no-extrusion join ended is not drawn tapered. Ring positions use the averaged direction at each point.
+  const nrm=j=>{ const p=pts[j]; const a=sameRun(j,j-1)?pts[j-1]:p, b=sameRun(j,j+1)?pts[j+1]:p; let tx=b.X-a.X, ty=b.Y-a.Y; const tl=Math.hypot(tx,ty)||1; return [-ty/tl, tx/tl]; };
+  for(let c0=0;c0<n;c0+=CH){ const c1=Math.min(n,c0+CH); const cn=c1-c0; const pos=new Float32Array(cn*8*3), col=new Float32Array(cn*8*3); const idx=[]; const idxEnd=new Uint32Array(cn);
+    for(let i=c0;i<c1;i++){ const li=i-c0; const p=pts[i];
+      if(i>0 && !p.travel && !p.nd && !p.glide){ const q=pts[i-1]; const em=p.em==null?1:p.em; const hw=P.lineW*p.m*Math.max(0.35,Math.sqrt(em||0.12))/2; const dz=lh*(em<1?0.6:1); const cc=kc[p.kind]||kc.wall;
+        const [nax,nay]=nrm(i-1), [nbx,nby]=nrm(i); const ring=(P0,nx,ny)=>[[P0.X+nx*hw,P0.Y+ny*hw,P0.Z],[P0.X-nx*hw,P0.Y-ny*hw,P0.Z],[P0.X-nx*hw,P0.Y-ny*hw,P0.Z-dz],[P0.X+nx*hw,P0.Y+ny*hw,P0.Z-dz]];
+        const v=ring({X:q.X,Y:q.Y,Z:p.Z},nax,nay).concat(ring(p,nbx,nby));
+        for(let k=0;k<8;k++){ const o=(li*8+k)*3; pos[o]=v[k][0]; pos[o+1]=v[k][1]; pos[o+2]=v[k][2]; col[o]=cc.r; col[o+1]=cc.g; col[o+2]=cc.b; }
+        const A=li*8, B=li*8+4; for(let k=0;k<4;k++){ const k2=(k+1)%4; idx.push(A+k,B+k,B+k2, A+k,B+k2,A+k2); } }
+      idxEnd[li]=idx.length; }
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.setIndex(new THREE.Uint16BufferAttribute(idx,1)); g.computeVertexNormals();
     const m=new THREE.Mesh(g,mat); m.userData={idxEnd,c0,total:idx.length}; m.frustumCulled=false; scene.add(m); meshes.push(m); }
   // travel lines (lift, move, lower)
