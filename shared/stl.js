@@ -1,4 +1,4 @@
-/* ClayLine Lab / ClayPath Lab / ClayMorph Lab — save the previewed shape as STL
+/* ClayMorph Lab — save the previewed shape as STL (only ClayMorph loads this for now)
  * Writes the preview meshes as one binary STL (mm, same position as the preview: the part's centre on the origin,
  * the bed at Z=0). The mesh is the clay bead along the toolpath (a thin box around every segment, width = line width ×
  * thickness, height = layer), so textures and modulation show exactly as printed. It is for rendering, CAD reference
