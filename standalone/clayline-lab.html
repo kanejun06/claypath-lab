@@ -372,7 +372,7 @@ clay3040:{
   gStart:"G90 ;absolute positioning\nG92 Z0 ;current needle height is Z zero\nG21 ;metric values\nM82 ;absolute extrusion\nM107 ;fan off\nG28 X0 Y0 ;home X and Y only. never home Z\nG92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print\nG1 Z15.0 F2400 ;lower the platform\nG92 E0 ;reset extruder\nG1 F200 E3 ;prime 3mm\nM117 Printing...\nM106 S255 ;fan full\nG92 E0\nG1 F1800 E-1 ;retract",
   gEnd:"M107\nG91 ;relative\nG1 E-1 F300\nG1 Z+20\nG90 ;back to absolute\nG28 X0 Y0\nM106 S0 ;fan off\nM84 ;disable motors\nM82 ;absolute extrusion mode",
   notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、9mm MDF）',
-  soft:{ovh:30, fillPitch:1.25}, // not locked: page defaults that suit this machine (overhang warning angle; bottom fill spacing 1.25 stopped blobs on layer 2, 2026-11-11)
+  soft:{ovh:30, fillPitch:1.25, slopeOn:true, slopeMax:1.2}, // not locked: page defaults that suit this machine (overhang warning angle; bottom fill spacing 1.25 stopped blobs on layer 2, 2026-11-11; slope compensation on, capped at x1.2 so steep walls do not get too wide)
 },
 ender3v3_10:{
   name:'Ender-3 V3・ノズル1.0mm・PLA（仮）',
@@ -403,7 +403,7 @@ function setValues(){ const $=id=>document.getElementById(id);
     if(!teacher){ el.disabled=true; el.title='機械の設定（変更は教員のみ）'; el.classList.add('locked'); } } }
 let applied=false;
 function apply(){ setValues(); if(applied) return; applied=true;
-  for(const [id,v] of Object.entries(PROFILE.soft||{})){ const el=document.getElementById(id); if(el) el.value=v; }
+  for(const [id,v] of Object.entries(PROFILE.soft||{})){ const el=document.getElementById(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!v; else el.value=v; }
   const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}'; document.head.appendChild(st);
   const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
     if(teacher){ b.append('教員モード：機械の設定を変更できます（このタブだけ。再読み込みで元の値に戻る）　機械：');
