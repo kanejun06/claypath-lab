@@ -321,6 +321,7 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
         <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
         <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
         <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="eFirst">初層の押出倍率</label><input id="eFirst" type="number" step="0.01" min="0.5" max="1.5" value="1"><span class="unit">倍</span></div>
         <div class="row"><label for="baseF">印刷速度（壁の基準）</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
         <div class="row"><label for="vFirst">初層速度（1層目・スカート）</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
         <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
@@ -476,7 +477,7 @@ function wave(kind,ph,theta,h,n,seed){ // ph = n*theta + twist ; returns -1..1
 /* ---------- state ---------- */
 let tris=null, bb=null, contours=null, path=null; // path: {x,y,z,f,w,bad,...}
 const P = {};
-const ids=['slopeOn','slopeMax','fillMode','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','ovh','seed','lineW','filD','eMul','travelF','bedX','bedY','skirt'];
+const ids=['slopeOn','slopeMax','fillMode','bKind','bN','bA','bR','bRot','dB','tKind','tN','tA','tR','tRot','dT','hgt','twist','corr','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','ovh','seed','lineW','filD','eMul','eFirst','travelF','bedX','bedY','skirt'];
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const cF=new Curve($('curveF'),0.5,1.5,[1,1,1,1,1],()=>recompute());
 const cV=new Curve($('curveV'),0.5,1.5,[1,1,1,1,1],()=>recompute());
@@ -784,6 +785,7 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(p.ovh===0) add('', `オーバーハング ${P.ovh}° 以内`); else add('bad', `オーバーハング警告 ${p.ovh.toLocaleString()} 点（${P.ovh}° 超）。赤い部分は前の層に乗らない可能性`);
   if(p.clampF) add('mid', `太さ倍率が可動域を超えて ${p.clampF.toLocaleString()} 点を切り詰め（${P.fMin}〜${P.fMax}）`); else add('', `太さ倍率は可動域内`);
   if(p.clampV) add('mid', `速度倍率が可動域を超えて ${p.clampV.toLocaleString()} 点を切り詰め（${P.vMin}〜${P.vMax}）`); else add('', `速度倍率は可動域内`);
+  if(P.eFirst!==1) add(P.eFirst<0.8||P.eFirst>1.2?'mid':'', `初層（1層目とスカート）の押出は ×${P.eFirst}（押出倍率 ${P.eMul} に掛ける）`);
   if(P.vFirst!==P.baseF) add('', `初層は ${P.vFirst} mm/s（壁の基準は ${P.baseF} mm/s）`);
   if(p.rmx>1.6||p.rmn<0.5) add('mid', `押出レートが基準の ×${p.rmn.toFixed(2)}–${p.rmx.toFixed(2)}。スクリューの追従と圧に注意`);
   if(p.clampXY) add('mid', `XY変位が上限 ${P.xyMax}mm を超えて ${p.clampXY.toLocaleString()} 点を切り詰め`); else add('', `XY変位は上限内`);
@@ -886,18 +888,18 @@ function gcode(M){ /* M (optional): filled with the G-code line number of every 
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
   if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
-  out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
+  out.push(`; first layer flow x${P.eFirst}`); out.push($('gStart').value.trim()); let E=0; const f3=v=>v.toFixed(3); const first=p.pts[0]; const ox=P.bedX, oy=P.bedY; const X=v=>f3(v+ox), Y=v=>f3(v+oy);
   const bf=Math.round(P.vFirst*60); // skirt runs on the first layer
   if(P.skirt){ const c=contours.find(c=>c); if(c){ const N=contours.N; out.push(`;TYPE:SKIRT`);
     const sk=[]; for(let i=0;i<=N;i++){ const k=i%N; const x=c.pts[k*2],y=c.pts[k*2+1]; const dx=x-c.cx,dy=y-c.cy; const d=Math.hypot(dx,dy)||1; sk.push([x+dx/d*MP.skirtOff,y+dy/d*MP.skirtOff]); }
     out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(lh+MP.hop)}`); out.push(`G0 F${tf} X${X(sk[0][0])} Y${Y(sk[0][1])}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)}`); out.push(`G1 F${bf}`);
-    for(let i=1;i<sk.length;i++){ const s=Math.hypot(sk[i][0]-sk[i-1][0],sk[i][1]-sk[i-1][1]); E+=s*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); }
+    for(let i=1;i<sk.length;i++){ const s=Math.hypot(sk[i][0]-sk[i-1][0],sk[i][1]-sk[i-1][1]); E+=s*ePerMm*P.eFirst; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); }
     out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); } }
   out.push(first.bottom?`;TYPE:FILL`:`;TYPE:WALL-OUTER`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z+MP.hop)}`); out.push(`G0 F${tf} X${X(first.X)} Y${Y(first.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(first.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`);
   let lastF=-1, lastLayer=-1;
   for(let i=1;i<p.pts.length;i++){ const q=p.pts[i-1], r=p.pts[i]; if(M&&i>0) M[i-1]=out.length-1; if(r.layer!==lastLayer){ out.push(`;LAYER:${r.layer} z${f3(r.Z)}`); lastLayer=r.layer; if(q.bottom&&!r.bottom) out.push(`;TYPE:WALL-OUTER`); }
     if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q.Z,r.Z)+MP.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); lastF=-1; continue; }
-    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em||1); const F=Math.round(r.f*60); let line=`G1 `; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)} E${f3(E)}`; out.push(line); }
+    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em||1)*(r.layer===0?P.eFirst:1); const F=Math.round(r.f*60); let line=`G1 `; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)} E${f3(E)}`; out.push(line); }
   if(M){ M[p.pts.length-1]=out.length-1; const st=[]; let ln=1; for(const o of out){ st.push(ln); ln+=o.split('\n').length; } for(let k=0;k<M.length;k++) if(M[k]!=null) M[k]=st[M[k]]; }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
 let dlCap=undefined;

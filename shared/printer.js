@@ -22,6 +22,7 @@ clay3040:{
   layerH:0.9,        // mm
   filD:2.2,          // mm, "filament" diameter used to convert volume to E (screw extruder)
   eMul:0.85,         // extrusion multiplier (Cura flow)
+  eFirst:1,          // extra multiplier for the first layer and skirt (e.g. 0.85 if the first layer blobs)
   baseF:18,          // mm/s, base wall speed (try up to ~30 later)
   vFirst:18,         // mm/s, first layer and skirt
   travelF:60,        // mm/s, travel moves
@@ -42,7 +43,7 @@ ender3v3_10:{
   name:'Ender-3 V3・ノズル1.0mm・PLA（仮）',
   short:'Ender-3 V3・1.0mm・PLA（仮）',
   provisional:true,  // start code and values not yet checked on the machine
-  nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eMul:1.0,
+  nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eMul:1.0, eFirst:1,
   baseF:25,          // mm/s: 1.1 × 0.5 × 25 ≈ 14 mm³/s, well inside what the hotend melts
   vFirst:15, travelF:150, zF:10,
   retract:0.8, retractF:40, hop:0.4,
@@ -59,7 +60,7 @@ const MACHINE=(location.search.match(/[?&]machine=([\w-]+)/)||[])[1];
 const PROFILE=PROFILES[MACHINE]||PROFILES.clay3040;
 const PROFILE_ID=PROFILES[MACHINE]? MACHINE : 'clay3040';
 // inputs that belong to the machine (only those a page has are touched)
-const LOCK=['lineW','layerH','filD','eMul','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
+const LOCK=['lineW','layerH','filD','eMul','eFirst','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
 const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
 function setValues(){ const $=id=>document.getElementById(id);
   for(const id of LOCK){ const el=$(id); if(!el||!(id in PROFILE)) continue;

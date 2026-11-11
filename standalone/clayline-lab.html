@@ -246,6 +246,7 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
         <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
         <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
         <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="eFirst">初層の押出倍率</label><input id="eFirst" type="number" step="0.01" min="0.5" max="1.5" value="1"><span class="unit">倍</span></div>
         <div class="row"><label for="baseF">印刷速度（壁の基準）</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
         <div class="row"><label for="vFirst">初層速度（1層目・スカート）</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
         <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
@@ -356,6 +357,7 @@ clay3040:{
   layerH:0.9,        // mm
   filD:2.2,          // mm, "filament" diameter used to convert volume to E (screw extruder)
   eMul:0.85,         // extrusion multiplier (Cura flow)
+  eFirst:1,          // extra multiplier for the first layer and skirt (e.g. 0.85 if the first layer blobs)
   baseF:18,          // mm/s, base wall speed (try up to ~30 later)
   vFirst:18,         // mm/s, first layer and skirt
   travelF:60,        // mm/s, travel moves
@@ -376,7 +378,7 @@ ender3v3_10:{
   name:'Ender-3 V3・ノズル1.0mm・PLA（仮）',
   short:'Ender-3 V3・1.0mm・PLA（仮）',
   provisional:true,  // start code and values not yet checked on the machine
-  nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eMul:1.0,
+  nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eMul:1.0, eFirst:1,
   baseF:25,          // mm/s: 1.1 × 0.5 × 25 ≈ 14 mm³/s, well inside what the hotend melts
   vFirst:15, travelF:150, zF:10,
   retract:0.8, retractF:40, hop:0.4,
@@ -393,7 +395,7 @@ const MACHINE=(location.search.match(/[?&]machine=([\w-]+)/)||[])[1];
 const PROFILE=PROFILES[MACHINE]||PROFILES.clay3040;
 const PROFILE_ID=PROFILES[MACHINE]? MACHINE : 'clay3040';
 // inputs that belong to the machine (only those a page has are touched)
-const LOCK=['lineW','layerH','filD','eMul','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
+const LOCK=['lineW','layerH','filD','eMul','eFirst','baseF','vFirst','travelF','hop','bedX','bedY','skirt','gStart','gEnd'];
 const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
 function setValues(){ const $=id=>document.getElementById(id);
   for(const id of LOCK){ const el=$(id); if(!el||!(id in PROFILE)) continue;
@@ -508,7 +510,7 @@ return {mount,show};
 // machine profile (shared/printer.js): fills and locks the machine inputs; falls back to the page's own values if the file is missing
 const MP=Object.assign({zF:40,retract:1,retractF:30,hop:1,skirtOff:6},(window.ClayPrinter&&ClayPrinter.PROFILE)||{}); if(window.ClayPrinter) ClayPrinter.apply();
 const $=id=>document.getElementById(id);
-const ids=['pxUnit','scale','sx','sy','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','wallW','frameWm','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','travelF','hop','bedX','bedY','skirt'];
+const ids=['pxUnit','scale','sx','sy','step','frameMode','frameW','frameD','frameR','frameDia','layerH','height','bottomN','fillPitch','order','loops','join','joinMax','lineMax','snap','frameE','glideRet','endOv','lineE','rot','rotMode','rotMax','rotTarget','wallW','frameWm','useSW','wMin','wMax','baseF','vFirst','prime','lineW','filD','eMul','eFirst','travelF','hop','bedX','bedY','skirt'];
 const P={};
 function readP(){ for(const id of ids){ const el=$(id); P[id]= el.type==='checkbox'?el.checked : el.tagName==='SELECT'?el.value : +el.value; } }
 const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
@@ -752,6 +754,7 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   $('sLen').textContent=`${(p.lenP/1000).toFixed(2)} m`; $('sTrav').textContent=`${(p.lenT/1000).toFixed(2)} m（${p.hops} 回）`;
   $('hud').textContent=`${fmtTime(p.time)} · ${p.layers} 層 · 壁の線 ${c.nOpen} 本 · 持ち上げ ${p.hops} 回${P.rot?` · 回転 ${p.rot.degMin.toFixed(0)}〜${p.rot.degMax.toFixed(0)}°`:''}`;
   const W=[]; const add=(cls,t)=>W.push(`<div class="warn ${cls}">${t}</div>`);
+  if(P.eFirst!==1) add(P.eFirst<0.8||P.eFirst>1.2?'mid':'', `初層（1層目とスカート）の押出は ×${P.eFirst}（押出倍率 ${P.eMul} に掛ける）`);
   { const ww=wWall(), wf=wFrame(), lh=P.layerH; $('wNote').textContent=`壁の線 ${ww.toFixed(2)} mm・枠 ${wf.toFixed(2)} mm（線幅 ${P.lineW} mm に対して）`;
     const mx=Math.max(ww,wf)*(P.useSW?P.wMax:1), mn=Math.min(ww,wf)*(P.useSW?P.wMin:1);
     if(mx>lh*2) add('mid',`最も太い線 ${mx.toFixed(2)} mm は層高 ${lh} mm の2倍を超える。押し広げすぎて縁が波打ちやすい`);
@@ -885,10 +888,10 @@ function gcode(M){ /* M (optional): filled with the G-code line number of every 
     `; svg units ${src.unitNote} scale ${P.scale}% x${P.sx}% y${P.sy}%  size ${(bb.mx[0]-bb.mn[0]).toFixed(1)}x${(bb.mx[1]-bb.mn[1]).toFixed(1)}mm`,
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
-  out.push($('gStart').value.trim()); let E=0;
+  out.push(`; first layer flow x${P.eFirst}`); out.push($('gStart').value.trim()); let E=0;
   if(P.skirt){ const o=MP.skirtOff, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
     out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
-    for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
+    for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm*P.eFirst; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
   let lastF=-1,lastL=-1,lastK='',gl=false;
   for(let i=0;i<p.pts.length;i++){ const r=p.pts[i], q=i?p.pts[i-1]:null; if(M&&i>0) M[i-1]=out.length-1;
     if(gl && !r.glide){ if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); gl=false; lastF=-1; }
@@ -897,7 +900,7 @@ function gcode(M){ /* M (optional): filled with the G-code line number of every 
     if(r.nd){ out.push(`G1 F${Math.round(MP.zF*60)} X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)}`); lastF=Math.round(MP.zF*60); continue; }
     if(r.glide){ if(!gl){ out.push(';TYPE:GLIDE'); lastK='GLIDE'; if(P.glideRet) out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); gl=true; lastF=-1; } const F=Math.round(r.f*60); out.push(`G1 ${F!==lastF?`F${F} `:''}X${X(r.X)} Y${Y(r.Y)}`); lastF=F; continue; }
     const tk=r.kind==='join'?'JOIN':r.kind==='frame'?'FRAME':r.kind==='fill'?'FILL':'WALL'; if(tk!==lastK){ out.push(`;TYPE:${tk}`); lastK=tk; }
-    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
+    const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em==null?1:r.em)*(r.layer===0?P.eFirst:1); const F=Math.round(r.f*60); let line='G1 '; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} E${f3(E)}`; out.push(line); }
   if(M){ M[p.pts.length-1]=out.length-1; const st=[]; let ln=1; for(const o of out){ st.push(ln); ln+=o.split('\n').length; } for(let k=0;k<M.length;k++) if(M[k]!=null) M[k]=st[M[k]]; }
   out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
 let dlCap; async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
