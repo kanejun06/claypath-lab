@@ -22,7 +22,7 @@ clay3040:{
   layerH:0.9,        // mm
   filD:2.2,          // mm, "filament" diameter used to convert volume to E (screw extruder)
   eMul:0.85,         // extrusion multiplier (Cura flow)
-  eFirst:1,          // extra multiplier for the first layer and skirt (e.g. 0.85 if the first layer blobs)
+  eFirst:0.85,       // extra multiplier for the first layer and skirt (0.85 stopped first-layer blobs, 2026-11-11)
   baseF:18,          // mm/s, base wall speed (try up to ~30 later)
   vFirst:18,         // mm/s, first layer and skirt
   travelF:60,        // mm/s, travel moves
@@ -37,7 +37,7 @@ clay3040:{
   gStart:"G90 ;absolute positioning\nG92 Z0 ;current needle height is Z zero\nG21 ;metric values\nM82 ;absolute extrusion\nM107 ;fan off\nG28 X0 Y0 ;home X and Y only. never home Z\nG92 X-15 Y-30 ;bed center offset. edit these two numbers to shift the print\nG1 Z15.0 F2400 ;lower the platform\nG92 E0 ;reset extruder\nG1 F200 E3 ;prime 3mm\nM117 Printing...\nM106 S255 ;fan full\nG92 E0\nG1 F1800 E-1 ;retract",
   gEnd:"M107\nG91 ;relative\nG1 E-1 F300\nG1 Z+20\nG90 ;back to absolute\nG28 X0 Y0\nM106 S0 ;fan off\nM84 ;disable motors\nM82 ;absolute extrusion mode",
   notes:'空気圧・土の配合・ベッドはG-codeの外で決まる（例：0.3MPa、フロスト100:35、9mm MDF）',
-  soft:{ovh:30},     // not locked: page defaults that suit this machine (overhang warning angle)
+  soft:{ovh:30, fillPitch:1.25}, // not locked: page defaults that suit this machine (overhang warning angle; bottom fill spacing 1.25 stopped blobs on layer 2, 2026-11-11)
 },
 ender3v3_10:{
   name:'Ender-3 V3・ノズル1.0mm・PLA（仮）',
