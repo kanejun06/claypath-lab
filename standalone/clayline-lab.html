@@ -186,16 +186,14 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
     </section>
 
     <section>
-      <h2>太さ・速度</h2>
+      <h2>太さ</h2>
       <div class="row"><label for="wallW">壁の線の太さ</label><input id="wallW" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
       <div class="row"><label for="frameWm">枠の太さ</label><input id="frameWm" type="number" step="0.05" min="0.3" max="2.5" value="1.0"><span class="unit">倍</span></div>
       <div class="note" id="wNote">—</div>
       <div class="row"><label class="toggle"><input id="useSW" type="checkbox">SVGの線の太さを押出に反映</label></div>
       <div class="row"><label for="wMin">太さ倍率の範囲</label><input id="wMin" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">〜</span><input id="wMax" type="number" step="0.05" min="1" max="3" value="1.6"></div>
-      <div class="row"><label for="baseF">速度</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
-      <div class="row"><label for="vFirst">初層速度</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
       <div class="row"><label for="prime">移動後の先押し</label><input id="prime" type="number" step="0.1" min="0" max="5" value="0"><span class="unit">mm</span></div>
-      <div class="note">太さは押出量（E）で変える（速度は同じ）。線の太さを反映すると、stroke-width÷線幅（設定値）を線ごとの倍率にして、上の倍率に掛ける（範囲で切り詰め）。先押しは持ち上げ移動の後、書き始める前に足すE（フィラメント長）。</div>
+      <div class="note">太さは押出量（E）で変える（速度は同じ）。印刷速度は「押出・開始/終了コードの設定」（右下の G-code の欄）にある。線の太さを反映すると、stroke-width÷線幅（設定値）を線ごとの倍率にして、上の倍率に掛ける（範囲で切り詰め）。先押しは持ち上げ移動の後、書き始める前に足すE（フィラメント長）。</div>
     </section>
   </div>
 
@@ -248,6 +246,8 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
         <div class="row"><label for="lineW">線幅（設定値）</label><input id="lineW" type="number" step="0.1" min="0.5" max="5" value="1.5"><span class="unit">mm</span></div>
         <div class="row"><label for="filD">フィラメント径</label><input id="filD" type="number" step="0.05" min="1" max="5" value="2.2"><span class="unit">mm</span></div>
         <div class="row"><label for="eMul">押出倍率（Cura flow）</label><input id="eMul" type="number" step="0.01" min="0.1" max="3" value="0.85"></div>
+        <div class="row"><label for="baseF">印刷速度（壁の基準）</label><input id="baseF" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
+        <div class="row"><label for="vFirst">初層速度（1層目・スカート）</label><input id="vFirst" type="number" step="1" min="2" max="80" value="18"><span class="unit">mm/s</span></div>
         <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
         <div class="row"><label for="hop">持ち上げ高さ</label><input id="hop" type="number" step="0.5" min="0" max="10" value="1"><span class="unit">mm</span></div>
         <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
