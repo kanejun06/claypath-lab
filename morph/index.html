@@ -800,7 +800,7 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
     if(P.mtFrom>nL) add('mid',`1層の最小時間：${P.mtFrom} 層目は範囲外（全 ${nL} 層）なので変えない`);
     else if(!mt.n) add('',`1層の最小時間 ${P.mtSec} 秒：${P.mtFrom} 層目＝${zf(P.mtFrom)} mm から上は、どの層も ${P.mtSec} 秒以上かかるので速度はそのまま`);
     else add('',`1層の最小時間 ${P.mtSec} 秒：${mt.first} 層目＝${zf(mt.first)} mm 〜 ${mt.last} 層目＝${zf(mt.last)} mm のうち ${mt.n} 層を遅くした（最も遅い所 ${mt.fmin.toFixed(1)} mm/s）`);
-    if(mt.short) add('mid',`最低速度 ${P.mtMinF} mm/s まで落としても ${P.mtSec} 秒に届かない層が ${mt.short} 層（最短 ${mt.shortMin.toFixed(1)} 秒）。休止を入れるか、最低速度を下げる`); }
+    if(mt.short) add('mid',`最低速度 ${P.mtMinF} mm/s まで落としても ${P.mtSec} 秒に届かない層が ${mt.short} 層（最短 ${mt.shortMin.toFixed(1)} 秒）。最低速度を下げるか、風を当てて乾かす`); }
   if(P.eFirst!==1) add(P.eFirst<0.8||P.eFirst>1.2?'mid':'', `初層（1層目とスカート）の押出は ×${P.eFirst}（押出倍率 ${P.eMul} に掛ける）`);
   if(P.vFirst!==P.baseF) add('', `初層は ${P.vFirst} mm/s（壁の基準は ${P.baseF} mm/s）`);
   if(p.rmx>1.6||p.rmn<0.5) add('mid', `押出レートが基準の ×${p.rmn.toFixed(2)}–${p.rmx.toFixed(2)}。スクリューの追従と圧に注意`);
