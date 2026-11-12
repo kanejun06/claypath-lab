@@ -1123,6 +1123,10 @@ function applyProgress(prog){ if(!mesh||!path) return; play.prog=Math.min(1,Math
 function tick(ts){ if(!play.on) return; const dt=(ts-play.last)/1000; play.last=ts; const total=path.ct[path.ct.length-1]; let prog=play.prog + dt*(+$('playSpd').value)/total; if(prog>=1){ prog=1; stopPlay(); } applyProgress(prog); if(play.on) play.raf=requestAnimationFrame(tick); }
 function startPlay(){ if(!path) return; if(play.prog>=1) play.prog=0; play.on=true; play.last=performance.now(); $('btnPlay').textContent='❚❚ 停止'; play.raf=requestAnimationFrame(tick); }
 function stopPlay(){ play.on=false; cancelAnimationFrame(play.raf); $('btnPlay').textContent='▶ 再生'; if(path) applyProgress(play.prog); }
+
+// typing a layer number in 1層の最小時間を効かせる層 moves the preview to the start of that layer
+function jumpToLayer(nL){ if(!path||!path.ct||!(nL>0)) return; const pts=path.pts, n=pts.length; let i=pts.findIndex(p=>!p.travel&&p.layer>=nL-1); if(i<0) i=n-1; if(play.on) stopPlay(); const j=Math.min(n-1,i+1); applyProgress((path.ct[i]+(path.ct[j]-path.ct[i])*0.5)/path.ct[n-1]); }  // a little into the layer's first segment
+{ let jt=0; const el=$('mtFrom'); const go=()=>{ clearTimeout(jt); jt=setTimeout(()=>jumpToLayer(Math.round(+el.value)),350); }; el.addEventListener('input',go); el.addEventListener('change',go); }
 $('btnPlay').onclick=()=>{ play.on?stopPlay():startPlay(); };
 let scrubRaf=0; $('scrub').addEventListener('input',e=>{ if(play.on) stopPlay(); play.scrubbing=true; const v=+e.target.value/1000; cancelAnimationFrame(scrubRaf); scrubRaf=requestAnimationFrame(()=>applyProgress(v)); });
 $('scrub').addEventListener('change',e=>{ play.scrubbing=false; applyProgress(+e.target.value/1000); });
