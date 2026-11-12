@@ -161,9 +161,10 @@ section.off .row:not(.keep),section.off .curve,section.off .curvecap{opacity:.4;
       <div class="row"><label for="pauseAt">途中で休止する層</label><input id="pauseAt" type="text" inputmode="numeric" placeholder="例：45, 60" style="width:110px;font-family:var(--mono);font-size:12px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)"><span class="unit">層目</span></div>
       <div class="row"><label for="pauseSec">休止の長さ</label><input id="pauseSec" type="number" step="5" min="1" max="1800" value="10"><span class="unit">秒</span></div>
       <div class="note">指定した層の刷り始めで、ノズルをその場に止めたまま決めた秒数だけ待ち、続きを刷る（G4。リトラクトも持ち上げもしない）。層の番号は再生バーの「層 ○/○」と同じ数え方。その間に扇風機やドライヤーで乾かせる。複数の層はカンマで区切る。空欄なら休止しない。</div>
-      <div class="row"><label for="slowFrom">この層から遅くする</label><input id="slowFrom" type="number" step="1" min="0" max="2000" placeholder="なし"><span class="unit">層目</span></div>
-      <div class="row"><label for="slowMul">遅くしたときの速度</label><input id="slowMul" type="number" step="0.05" min="0.2" max="1" value="0.6"><span class="unit">倍</span></div>
-      <div class="note">指定した層から上を、壁の速度 ×この倍率で刷る（1 mm あたりの押出量は同じ）。1層にかかる時間が延びて、上の方が乾きやすくなる。空欄なら変えない。</div>
+      <div class="row"><label for="mtFrom">1層の最小時間を効かせる層</label><input id="mtFrom" type="number" step="1" min="0" max="2000" placeholder="なし"><span class="unit">層目から</span></div>
+      <div class="row"><label for="mtSec">1層の最小時間</label><input id="mtSec" type="number" step="1" min="1" max="600" value="20"><span class="unit">秒</span></div>
+      <div class="row"><label for="mtMinF">最低速度</label><input id="mtMinF" type="number" step="1" min="1" max="80" value="9"><span class="unit">mm/s</span></div>
+      <div class="note">指定した層から上は、1層を最小時間より早く刷り終えないように、その層の壁の速度を落とす（1 mm あたりの押出量は同じ）。下の層が乾いて硬くなる時間をとるため。ただし最低速度より遅くはしない。空欄なら変えない。</div>
       <div class="row"><label for="bottomN">底面の充填層数</label><input id="bottomN" type="number" step="1" min="0" max="12" value="3"><span class="unit">層</span></div>
       <div class="row"><label for="fillPitch">充填の線間隔（線幅比）</label><input id="fillPitch" type="number" step="0.05" min="0.5" max="1.5" value="1.0"></div>
       <div class="row"><label for="bottomShape">底面の外形</label><select id="bottomShape"><option value="wall">壁の1層目に合わせる</option><option value="stl">STLの輪郭のまま</option></select></div>
@@ -428,7 +429,7 @@ function wave(kind,ph,theta,h,n,seed){ // ph = n*theta + twist ; returns -1..1
 /* ---------- state ---------- */
 let tris=null, bb=null, contours=null, path=null; // path: {x,y,z,f,w,bad,...}
 const P = {};
-const ids=['pauseAt','pauseSec','slowFrom','slowMul','slopeOn','slopeMax','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','ovh','seed','lineW','filD','eMul','eFirst','travelF','bedX','bedY','skirt'];
+const ids=['pauseAt','pauseSec','mtFrom','mtSec','mtMinF','slopeOn','slopeMax','layerH','segs','spiral','joinMode','bottomN','fillPitch','bottomShape','bottomExt','modFree','onF','onV','onXY','baseF','vFirst','vMin','vMax','vAmp','vN','vTw','fMin','fMax','fAmp','fN','fTw','xyAmp','xyN','xyTw','xyWave','xyMax','wMode','ovh','seed','lineW','filD','eMul','eFirst','travelF','bedX','bedY','skirt'];
 // pauses: wall points where the print stops to let the clay dry (heights from the 途中で休止 field)
 function pauseLayers(){ return [...new Set(($('pauseAt').value||'').split(/[,、\s]+/).map(v=>Math.round(Number(v))).filter(v=>isFinite(v)&&v>0))].sort((a,b)=>a-b); }
 // a pause sits just before the first point of the given layer (1-based, as shown in the playback bar)
@@ -486,7 +487,7 @@ function recompute(){ if(!contours) return; readP();
     // speed system: height curve x circumferential wobble, multiplied with the thickness system's "flow" mode
     let v=P.onV ? cV.eval(h)*(1+P.vAmp*wave('sin',P.vN*th+P.vTw*d2r*z,th,h,P.vN,P.seed+23)) : 1;
     v=1+(v-1)*gs; if(v<P.vMin||v>P.vMax) clampV++; v=Math.min(P.vMax,Math.max(P.vMin,v)); p.v=v;
-    p.f = baseOf(p)*v/(P.wMode==='flow' ? m : 1)*((P.slowFrom>0 && p.layer>=P.slowFrom-1) ? P.slowMul : 1);
+    p.f = baseOf(p)*v/(P.wMode==='flow' ? m : 1);
     let dxy=P.onXY ? P.xyAmp*cXY.eval(h)*wave(P.xyWave,P.xyN*th+P.xyTw*d2r*z,th,h,P.xyN,P.seed) : 0;
     dxy*=gs; if(Math.abs(dxy)>P.xyMax){ clampXY++; dxy=Math.sign(dxy)*P.xyMax; }
     if(window.ClayBump) dxy+=ClayBump.disp(th,z,zWall,H)*gs; // image bump (outside the XY guard)
@@ -498,8 +499,14 @@ function recompute(){ if(!contours) return; readP();
   const stride=spiral?N:N+1; const tanLim=Math.tan(P.ovh*d2r); let ovh=0;
   for(let i=stride;i<pts.length;i++){ const p=pts[i],q=pts[i-stride]; if(p.bottom||q.bottom) continue; const dh=Math.hypot(p.X-q.X,p.Y-q.Y), dz=Math.max(0.05,p.Z-q.Z); if(dh/dz>tanLim){ p.bad=true; ovh++; } }
   // stats
+  // minimum layer time: from layer mtFrom up, slow each layer's walls so it takes at least mtSec seconds (never below mtMinF)
+  const mt={on:P.mtFrom>0&&P.mtSec>0, first:0,last:0,n:0,fmin:1e9,short:0,shortMin:1e9};
+  if(mt.on){ const byL=new Map(); for(let i=1;i<pts.length;i++){ const p=pts[i]; if(p.travel||p.bottom||p.layer<P.mtFrom-1) continue; let a=byL.get(p.layer); if(!a){ a={i:[],t:0}; byL.set(p.layer,a); } const q=pts[i-1]; a.i.push(i); a.t+=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z)/p.f; }
+    for(const [L,a] of byL){ if(a.t>=P.mtSec||a.t<=0) continue; const k=a.t/P.mtSec; let t2=0; for(const i of a.i){ const p=pts[i], q=pts[i-1]; const nf=Math.max(p.f*k, Math.min(p.f,P.mtMinF)); p.f=nf; t2+=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z)/nf; if(nf<mt.fmin) mt.fmin=nf; }
+      mt.n++; if(!mt.first||L+1<mt.first) mt.first=L+1; if(L+1>mt.last) mt.last=L+1; if(t2<P.mtSec-0.5){ mt.short++; mt.shortMin=Math.min(mt.shortMin,t2); } } }
   let len=0,time=0,fmn=1e9,fmx=0,mmn=1e9,mmx=0,rmn=1e9,rmx=0; for(let i=1;i<pts.length;i++){ const p=pts[i],q=pts[i-1]; const s=Math.hypot(p.X-q.X,p.Y-q.Y,p.Z-q.Z); if(p.travel){ time+=s/P.travelF; continue; } len+=s; time+=s/p.f; if(p.f<fmn)fmn=p.f; if(p.f>fmx)fmx=p.f; if(p.m<mmn)mmn=p.m; if(p.m>mmx)mmx=p.m; if(p.layer>0 && !p.join){ const r=p.f*p.m/P.baseF; if(r<rmn)rmn=r; if(r>rmx)rmx=r; } } if(rmx===0){ rmn=rmx=1; }
   path={slopeSt,pts,N,stride,len,time,join,fmn,fmx,mmn,mmx,rmn,rmx,nB,fillRings,fillConcave,fillZig,fillTravel,bottomWaveMax,layers:L,H,clampF,clampV,clampXY,ovh,missing:valid.filter(v=>!v).length};
+  path.mt=mt;
   path.pauses=findPauses(pts); path.time+=path.pauses.list.length*Math.max(0,+$('pauseSec').value||0);
   renderStats(); buildMesh(); }
 
@@ -512,7 +519,11 @@ function renderStats(){ const p=path; $('timeBig').innerHTML=`${fmtTime(p.time)}
   if(p.ovh===0) add('', `オーバーハング ${P.ovh}° 以内`); else add('bad', `オーバーハング警告 ${p.ovh.toLocaleString()} 点（${P.ovh}° 超）。赤い部分は前の層に乗らない可能性`);
   if(p.clampF) add('mid', `太さ倍率が可動域を超えて ${p.clampF.toLocaleString()} 点を切り詰め（${P.fMin}〜${P.fMax}）`); else add('', `太さ倍率は可動域内`);
   if(p.clampV) add('mid', `速度倍率が可動域を超えて ${p.clampV.toLocaleString()} 点を切り詰め（${P.vMin}〜${P.vMax}）`); else add('', `速度倍率は可動域内`);
-  if(P.slowFrom>0){ const nL=path.layers; add(P.slowFrom>nL?'mid':'', P.slowFrom>nL? `この層から遅くする：${P.slowFrom} 層目は範囲外（全 ${nL} 層）なので変えない` : `${P.slowFrom} 層目（${(P.slowFrom*P.layerH).toFixed(1)} mm 付近）から上を速度 ×${P.slowMul} で刷る`); }
+  if(P.mtFrom>0&&P.mtSec>0){ const nL=path.layers, mt=path.mt, zf=(n)=>(n*P.layerH).toFixed(1);
+    if(P.mtFrom>nL) add('mid',`1層の最小時間：${P.mtFrom} 層目は範囲外（全 ${nL} 層）なので変えない`);
+    else if(!mt.n) add('',`1層の最小時間 ${P.mtSec} 秒：${P.mtFrom} 層目＝${zf(P.mtFrom)} mm から上は、どの層も ${P.mtSec} 秒以上かかるので速度はそのまま`);
+    else add('',`1層の最小時間 ${P.mtSec} 秒：${mt.first} 層目＝${zf(mt.first)} mm 〜 ${mt.last} 層目＝${zf(mt.last)} mm のうち ${mt.n} 層を遅くした（最も遅い所 ${mt.fmin.toFixed(1)} mm/s）`);
+    if(mt.short) add('mid',`最低速度 ${P.mtMinF} mm/s まで落としても ${P.mtSec} 秒に届かない層が ${mt.short} 層（最短 ${mt.shortMin.toFixed(1)} 秒）。休止を入れるか、最低速度を下げる`); }
   { const pz=path.pauses; if(pz&&pz.asked.length){ const sec=Math.max(0,+$('pauseSec').value||0); const miss=pz.asked.length-pz.list.length;
       add(miss?'mid':'', pz.list.length? `途中で休止：${pz.list.map(o=>`${o.n} 層目（${o.z.toFixed(1)} mm）`).join('・')} の刷り始めで各 ${sec} 秒、その場で待つ${miss?`。${miss} か所は層の範囲外（全 ${path.layers} 層）なので休止しない`:''}` : `途中で休止：指定した層が範囲外（全 ${path.layers} 層）なので、休止しない`); } }
   if(P.eFirst!==1) add(P.eFirst<0.8||P.eFirst>1.2?'mid':'', `初層（1層目とスカート）の押出は ×${P.eFirst}（押出倍率 ${P.eMul} に掛ける）`);
@@ -609,7 +620,7 @@ if(matchMedia('(prefers-reduced-motion: reduce)').matches) $('playSpd').value='6
 
 /* ---------- G-code ---------- */
 function gcode(M){ /* M (optional): filled with the G-code line number of every path point, for the playback G-code panel */ readP(); const p=path; const lh=P.layerH; const area=P.lineW*lh; const fil=Math.PI*(P.filD/2)**2; const ePerMm=area/fil*P.eMul; const tf=Math.round(P.travelF*60);
-  const out=[]; if(P.slowFrom>0) out.push(`; slow down from layer ${P.slowFrom}: speed x${P.slowMul}`); if(p.pauses&&p.pauses.list.length) out.push(`; pause at layer ${p.pauses.list.map(o=>o.n).join(', ')} for ${$('pauseSec').value}s each, in place`); out.push(`; ClayPath Lab  ${new Date().toISOString().slice(0,16)}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
+  const out=[]; if(P.mtFrom>0&&P.mtSec>0) out.push(`; minimum layer time ${P.mtSec}s from layer ${P.mtFrom} (min speed ${P.mtMinF}mm/s)`); if(p.pauses&&p.pauses.list.length) out.push(`; pause at layer ${p.pauses.list.map(o=>o.n).join(', ')} for ${$('pauseSec').value}s each, in place`); out.push(`; ClayPath Lab  ${new Date().toISOString().slice(0,16)}`, `; W(E) ${P.onF?'on':'off'} mode ${P.wMode}  V(F) ${P.onV?'on':'off'}  XY ${P.onXY?'on':'off'}`, `; layer ${lh}mm  segs ${P.segs}  spiral ${P.spiral}  baseF ${P.baseF}mm/s  Wmult ${P.fMin}-${P.fMax}`, `; W curve ${cF.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.fAmp} n ${P.fN} tw ${P.fTw}`, `; V first ${P.vFirst}mm/s  Vmult ${P.vMin}-${P.vMax}  curve ${cV.y.map(v=>v.toFixed(2)).join(',')}  amp ${P.vAmp} n ${P.vN} tw ${P.vTw}`, `; bottom ${P.bottomN} layers shape ${P.bottomShape} pitch ${P.fillPitch} ext ${P.bottomExt}  modFree ${P.modFree}mm  join ${p.join}`, `; XY amp ${P.xyAmp} n ${P.xyN} tw ${P.xyTw} ${P.xyWave} | seed ${P.seed}`, `; est. time ${fmtTime(p.time)}  length ${(p.len/1000).toFixed(2)}m  layers ${p.layers}`);
   if(window.ClayRim&&ClayRim.params().on) out.push('; '+ClayRim.describe());
   if(window.ClayBump&&ClayBump.params().on) out.push('; '+ClayBump.describe());
   if(P.slopeOn) out.push(`; slope compensation on, max x${P.slopeMax}`);
