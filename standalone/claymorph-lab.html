@@ -421,6 +421,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
  *   clay3040    SYNO-SOURCE-3040 (air tank + screw extruder), Kobe Design University. Values confirmed on the machine.
  *   ender3v3_10 Creality Ender-3 V3, 1.0 mm nozzle, PLA. PROVISIONAL: generic start code and typical PLA values,
  *               not yet checked on the machine. Replace gStart/gEnd with what Creality Print writes for this printer.
+ *   ender3v3_08 Creality Ender-3 V3, 0.8 mm nozzle, PLA. PROVISIONAL, same start code as ender3v3_10.
  */
 (function(){
 "use strict";
@@ -462,6 +463,22 @@ ender3v3_10:{
   bedX:110, bedY:110,
   build:{x:220,y:220,z:250},
   gStart:"; PROVISIONAL start code for Ender-3 V3 (Creality OS / Klipper). Replace with the start of a Creality Print G-code for this printer.\nM140 S60 ;bed\nM104 S220 ;nozzle (PLA, 1.0 mm nozzle)\nG90\nM82 ;absolute extrusion\nG28 ;home all axes\nM190 S60\nM109 S220\nG92 E0\nG1 Z2 F600\nG1 X5 Y20 F6000 ;prime line at the left edge\nG1 Z0.4 F600\nG1 X5 Y180 E15 F900\nG1 X6 Y180 F900\nG1 X6 Y20 E30 F900\nG92 E0\nG1 Z2 F600\nM106 S255 ;part fan",
+  gEnd:"G91\nG1 E-1 F2400\nG1 Z10 F600\nG90\nG1 X0 Y200 F6000 ;present the print\nM104 S0\nM140 S0\nM107\nM84",
+  notes:'PLA。温度・速度・開始コードは仮。Creality Print の G-code の開始部分に差し替えて使う',
+  soft:{ovh:45},
+},
+ender3v3_08:{
+  name:'Ender-3 V3・ノズル0.8mm・PLA（仮）',
+  short:'Ender-3 V3・0.8mm・PLA（仮）',
+  provisional:true,  // start code and values not yet checked on the machine
+  nozzle:0.8, lineW:0.9, layerH:0.4, filD:1.75, eMul:1.0, eFirst:1,
+  baseF:30,          // mm/s: 0.9 × 0.4 × 30 ≈ 11 mm³/s, well inside what the hotend melts
+  vFirst:15, travelF:150, zF:10,
+  retract:0.8, retractF:40, hop:0.4,
+  skirt:true, skirtOff:5,
+  bedX:110, bedY:110,
+  build:{x:220,y:220,z:250},
+  gStart:"; PROVISIONAL start code for Ender-3 V3 (Creality OS / Klipper). Replace with the start of a Creality Print G-code for this printer.\nM140 S60 ;bed\nM104 S215 ;nozzle (PLA, 0.8 mm nozzle)\nG90\nM82 ;absolute extrusion\nG28 ;home all axes\nM190 S60\nM109 S215\nG92 E0\nG1 Z2 F600\nG1 X5 Y20 F6000 ;prime line at the left edge\nG1 Z0.3 F600\nG1 X5 Y180 E12 F900\nG1 X5.8 Y180 F900\nG1 X5.8 Y20 E24 F900\nG92 E0\nG1 Z2 F600\nM106 S255 ;part fan",
   gEnd:"G91\nG1 E-1 F2400\nG1 Z10 F600\nG90\nG1 X0 Y200 F6000 ;present the print\nM104 S0\nM140 S0\nM107\nM84",
   notes:'PLA。温度・速度・開始コードは仮。Creality Print の G-code の開始部分に差し替えて使う',
   soft:{ovh:45},
