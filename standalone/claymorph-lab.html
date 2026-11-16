@@ -506,7 +506,7 @@ const VOL_MAX=20; // mm³/s: keep the scaled model's bead (thicker layers) under
 const scaleK=()=>PROFILE.lineW/CLAY.lineW;
 let scaleOn=false;
 if(PROFILE.creality){ let v=null; try{ v=localStorage.getItem('clayScale'); }catch(e){} scaleOn=/[?&]clayscale\b/.test(location.search)||v==='1'; }
-function eff(){ if(!scaleOn) return PROFILE; const k=scaleK(), p=Object.assign({},PROFILE), r1=v=>Math.round(v*10)/10;
+function eff(){ if(!scaleOn) return PROFILE; const k=scaleK(), p=Object.assign({},PROFILE), r1=v=>Math.round(v*100)/100;
   const vmax=VOL_MAX/(PROFILE.lineW*CLAY.layerH*k);
   Object.assign(p,{lineW:CLAY.lineW, layerH:CLAY.layerH, bedX:r1(PROFILE.bedX/k), bedY:r1(PROFILE.bedY/k), hop:r1(PROFILE.hop/k),
     baseF:r1(Math.min(PROFILE.baseF,vmax)/k), vFirst:r1(Math.min(PROFILE.vFirst,vmax)/k), travelF:r1(PROFILE.travelF/k)});
@@ -519,8 +519,16 @@ function setScale(on){ scaleOn=!!on; try{ localStorage.setItem('clayScale',scale
   try{ const q=new URLSearchParams(location.search); if(scaleOn) q.set('clayscale',''); else q.delete('clayscale'); history.replaceState(null,'',location.pathname+'?'+q.toString().replace(/clayscale=(&|$)/,'clayscale$1')+location.hash); }catch(e){}
   setValues(); for(const id of LOCK){ const el=document.getElementById(id); if(!el) continue; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
   scaleUI(); }
+// In clay-scale mode the machine fields hold clay-size values; show what the printer really does next to them.
+const REAL={lineW:'mm', layerH:'mm', baseF:'mm/s', vFirst:'mm/s', travelF:'mm/s', bedX:''};
+function realNotes(){ const k=scaleK(); for(const id of Object.keys(REAL)){ const el=document.getElementById(id); if(!el) continue;
+    const row=el.closest('.row')||el.parentElement; let sp=row.querySelector('.mreal');
+    if(!scaleOn){ if(sp) sp.remove(); continue; }
+    if(!sp){ sp=document.createElement('span'); sp.className='mreal'; row.appendChild(sp); if(!el._clReal){ el._clReal=true; el.addEventListener('input',realNotes); } }
+    const v=+el.value*k, f=x=>String(Math.round(x*(x<1?100:10))/(x<1?100:10));
+    sp.textContent= id==='bedX'? `実際 ${f(v)} / ${f(+(document.getElementById('bedY')||el).value*k)}` : `実際 ${f(v)} ${REAL[id]}`; } }
 let scaleBox=null;
-function scaleUI(){ if(!scaleBox) return; const k=scaleK(); scaleBox.querySelector('input').checked=scaleOn;
+function scaleUI(){ realNotes(); if(!scaleBox) return; const k=scaleK(); scaleBox.querySelector('input').checked=scaleOn;
   scaleBox.classList.toggle('on',scaleOn);
   scaleBox.querySelector('span').textContent= scaleOn? `粘土の縮尺で刷る：画面は粘土の大きさ、刷るのは ${Math.round(k*100)}%（×${k.toFixed(2)}）` : '粘土の縮尺で刷る'; }
 function scaleControl(){ const lab=document.createElement('label'); lab.className='mscale';
@@ -529,7 +537,7 @@ function scaleControl(){ const lab=document.createElement('label'); lab.classNam
 let applied=false;
 function apply(){ setValues(); if(applied) return; applied=true;
   for(const [id,v] of Object.entries(PROFILE.soft||{})){ const el=document.getElementById(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!v; else el.value=v; }
-  const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}.mscale{font-size:11px;display:inline-flex;gap:4px;align-items:center;align-self:center;white-space:nowrap;padding:1px 7px;border-radius:4px;border:1px solid var(--line);color:var(--fg2);cursor:pointer}.mscale.on{border-color:var(--acc,#2a6);color:var(--fg)}'; document.head.appendChild(st);
+  const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}.mscale{font-size:11px;display:inline-flex;gap:4px;align-items:center;align-self:center;white-space:nowrap;padding:1px 7px;border-radius:4px;border:1px solid var(--line);color:var(--fg2);cursor:pointer}.mscale.on{border-color:var(--acc,#2a6);color:var(--fg)}.row:has(>.mreal){flex-wrap:wrap;row-gap:0}.mreal{flex-basis:100%;text-align:right;font-size:11px;color:var(--acc,#2a6);margin-top:-2px}'; document.head.appendChild(st);
   const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
     if(teacher){ b.append('教員モード：機械の設定を変更できます（このタブだけ。再読み込みで元の値に戻る）　機械：');
       const sel=document.createElement('select'); sel.style.cssText='font:inherit;font-size:11px'; for(const [id,p] of Object.entries(PROFILES)){ const o=document.createElement('option'); o.value=id; o.textContent=p.name; if(id===PROFILE_ID) o.selected=true; sel.appendChild(o); }
@@ -538,7 +546,7 @@ function apply(){ setValues(); if(applied) return; applied=true;
     else { b.textContent=`🔒 ${PROFILE.short}`; b.title='機械の設定は教員だけが変更できます'+(PROFILE.provisional?'（この機械の設定は仮です）':''); const sub=hd.querySelector('.sub'); (sub||hd.lastChild).after(b); }
     if(PROFILE.creality) b.after(scaleControl()); } }
 // after loading a settings file: put the machine values back unless a teacher is testing
-function reapply(){ if(!teacher) setValues(); }
+function reapply(){ if(!teacher) setValues(); realNotes(); }
 
 // Last pass over a finished G-code (every tool calls it). For printers with a Creality OS screen the file must look like a
 // Creality Print file: the screen reads the header when a file is opened, and a file with non-ASCII text (the tools'
