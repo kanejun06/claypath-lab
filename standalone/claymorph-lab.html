@@ -459,7 +459,8 @@ ender3v3_10:{
   provisional:true,  // start code and values not yet checked on the machine
   nozzle:1.0, lineW:1.1, layerH:0.5, filD:1.75, eFirst:1,
   eMul:0.884,        // = flow 0.98 × 0.902 (rounded-slot bead area, as Creality Print computes it)
-  baseF:35,          // mm/s: 1.1 × 0.5 × 35 ≈ 19 mm³/s (raised from 25 on 2026-11-16; the hotend melts about 23 mm³/s of Hyper PLA)
+  baseF:30,          // mm/s: 1.1 × 0.5 × 30 ≈ 17 mm³/s (2026-11-16: 30 mm/s at most for these PLA tests)
+  maxF:30,           // mm/s: no extruding move faster than this, whatever the page's speed changes do (see finalize)
   vFirst:20, travelF:150, zF:10,
   retract:0.8, retractF:40, hop:0.4,
   skirt:true, skirtOff:5,
@@ -477,8 +478,9 @@ ender3v3_08:{
   provisional:true,  // start/end code and values from Creality Print 6.3 ("0.40mm Standard @Creality Ender-3 V3 0.8 nozzle", Hyper PLA), not yet printed with these tools
   nozzle:0.8, lineW:0.82, layerH:0.4, filD:1.75, eFirst:1,
   eMul:0.877,        // = Creality flow 0.98 × 0.895: these tools take the bead as width × height, Creality Print as a rounded slot ((w−h)·h + π(h/2)²); matched to its 0.1197 E/mm on straight walls
-  baseF:55,          // mm/s: 0.82 × 0.4 × 55 ≈ 18 mm³/s (raised from 40 on 2026-11-16; Creality Print allows 23 mm³/s for Hyper PLA; its outer wall is 100 mm/s)
-  vFirst:30, travelF:150, zF:10,
+  baseF:30,          // mm/s: 0.82 × 0.4 × 30 ≈ 10 mm³/s (2026-11-16: 30 mm/s at most for these PLA tests; Creality Print allows 23 mm³/s for Hyper PLA)
+  maxF:30,           // mm/s: no extruding move faster than this, whatever the page's speed changes do (see finalize)
+  vFirst:20, travelF:150, zF:10,
   retract:1.5, retractF:40, hop:0.4,
   skirt:true, skirtOff:5,
   bedX:110, bedY:110,
@@ -507,7 +509,7 @@ const scaleK=()=>PROFILE.lineW/CLAY.lineW;
 let scaleOn=false;
 if(PROFILE.creality){ let v=null; try{ v=localStorage.getItem('clayScale'); }catch(e){} scaleOn=/[?&]clayscale\b/.test(location.search)||v==='1'; }
 function eff(){ if(!scaleOn) return PROFILE; const k=scaleK(), p=Object.assign({},PROFILE), r1=v=>Math.round(v*100)/100;
-  const vmax=VOL_MAX/(PROFILE.lineW*CLAY.layerH*k);
+  const vmax=Math.min(PROFILE.maxF||1e9, VOL_MAX/(PROFILE.lineW*CLAY.layerH*k));
   Object.assign(p,{lineW:CLAY.lineW, layerH:CLAY.layerH, bedX:r1(PROFILE.bedX/k), bedY:r1(PROFILE.bedY/k), hop:r1(PROFILE.hop/k),
     baseF:r1(Math.min(PROFILE.baseF,vmax)/k), vFirst:r1(Math.min(PROFILE.vFirst,vmax)/k), travelF:r1(PROFILE.travelF/k)});
   return p; }
@@ -589,6 +591,10 @@ function finalize(text,M){ if(!PROFILE.creality) return text;
   let L=text.split('\n').map(l=>{ if(!/[^\x00-\x7f]/.test(l)) return l; const k=l.indexOf(';'); return k<0? ascii(l) : l.slice(0,k)+ascii(l.slice(k)); });
   if(scaleOn){ const k=scaleK(); L=scaleMoves(L,k); const i=L.findIndex(l=>/^G[01]\b/.test(l)); L.splice(Math.max(0,i),0,`; clay scale x${k.toFixed(4)}: clay-size design (line ${CLAY.lineW} mm, layer ${CLAY.layerH} mm) printed as a PLA model (line ${PROFILE.lineW} mm, layer ${(CLAY.layerH*k).toFixed(3)} mm)`);
     if(M&&M.length) for(let j=0;j<M.length;j++) if(typeof M[j]==='number'&&M[j]>=i) M[j]++; }
+  if(PROFILE.maxF){ const fm=Math.round(PROFILE.maxF*60); // cap printing speed: F on extruding XY moves and on bare "G1 F" lines (they set the speed for the extrusion that follows)
+    L=L.map(l=>{ const c=l.indexOf(';'), cmd=c<0?l:l.slice(0,c); if(!/^G[01]\b/.test(cmd)||!/ F[\d.]/.test(cmd)) return l;
+      const xy=/ [XY]-?[\d.]/.test(cmd), e=/ E-?[\d.]/.test(cmd), z=/ Z-?[\d.]/.test(cmd); if(!((xy&&e)||(!xy&&!e&&!z))) return l;
+      return l.replace(/ F([\d.]+)/,(m,v)=>' F'+Math.min(+v,fm)); }); }
   let layers=0, zmax=0, x0=1e9,y0=1e9,x1=-1e9,y1=-1e9, emax=0, mins=0;
   const segs=[]; let cx=0,cy=0,cz=0,ce=0;
   for(const l of L){ if(l.startsWith(';LAYER:')) layers++; if(!/^G[01] /.test(l)) continue;
