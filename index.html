@@ -633,7 +633,7 @@ function gcode(M){ /* M (optional): filled with the G-code line number of every 
     if(r.travel){ out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E-MP.retract)} ;retract`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(Math.max(q.Z,r.Z)+MP.hop)}`); out.push(`G0 F${tf} X${X(r.X)} Y${Y(r.Y)}`); out.push(`G1 F${Math.round(MP.zF*60)} Z${f3(r.Z)}`); out.push(`G1 F${Math.round(MP.retractF*60)} E${f3(E)} ;unretract`); lastF=-1; continue; }
     const s=Math.hypot(r.X-q.X,r.Y-q.Y,r.Z-q.Z); E+=s*ePerMm*r.m*(r.em||1)*(r.layer===0?P.eFirst:1); const F=Math.round(r.f*60); let line=`G1 `; if(F!==lastF){ line+=`F${F} `; lastF=F; } line+=`X${X(r.X)} Y${Y(r.Y)} Z${f3(r.Z)} E${f3(E)}`; out.push(line); }
   if(M){ M[p.pts.length-1]=out.length-1; const st=[]; let ln=1; for(const o of out){ st.push(ln); ln+=o.split('\n').length; } for(let k=0;k<M.length;k++) if(M[k]!=null) M[k]=st[M[k]]; }
-  out.push($('gEnd').value.trim()); return out.join('\n')+'\n'; }
+  out.push($('gEnd').value.trim()); const txt=out.join('\n')+'\n'; return (window.ClayPrinter&&ClayPrinter.finalize)? ClayPrinter.finalize(txt,M) : txt; }
 let dlCap=undefined;
 async function getDl(){ if(dlCap===undefined){ try{ dlCap = window.claude?.use ? await window.claude.use('downloads') : null; }catch(e){ dlCap=null; } } return dlCap; }
 function setMsg(t,cls){ const m=$('msg'); m.textContent=t; m.className='msg '+(cls||''); }
