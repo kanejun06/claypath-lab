@@ -690,7 +690,7 @@ function html(){ return `
   <div class="row"><label for="bmpFadeLo">フェード（下端／上端）</label><input id="bmpFadeLo" type="number" step="1" min="0" max="200" value="0"><span class="unit">／</span><input id="bmpFadeHi" type="number" step="1" min="0" max="200" value="0"><span class="unit">mm</span></div>
   <div class="row"><label for="bmpBlur">ぼかし</label><input id="bmpBlur" type="range" min="0" max="8" step="1" value="1"><span class="val" id="bmpBlurV">1</span><span class="unit">px</span></div>
   <div class="row"><label class="toggle"><input id="bmpInv" type="checkbox">白黒を反転</label></div>
-  <div class="note">画像の左右が器の一周（左端＝0°、右回り）、上が口の側。細かさは「1周の点数」（周方向）と層高 0.9 mm（高さ方向）で決まるので、細かい模様は点数を増やすか、ぼかして大きな形にする。深さが大きいとオーバーハング警告が出やすい。ねじれは 1 mm 上がるごとに画像を何度回すか（模様が斜めに流れる）。フェードは貼る範囲の下端・上端からその長さで深さを 0 からなめらかに立ち上げる（模様の切れ目が段差にならない）。「壁の下は変調なし」もかかる。</div>`; }
+  <div class="note">画像の左右が器の一周（左端＝0°、右回り）、上が口の側。細かさは「1周の点数」（周方向）と層高 0.9 mm（高さ方向）で決まるので、細かい模様は点数を増やすか、ぼかして大きな形にする。深さが大きいとオーバーハング警告が出やすい。底のすぐ上と口で警告が出るときは、フェードを深さの4倍ほど（深さ 2 mm なら 8 mm）にする。画像を読み込んだとき、フェードが 0 なら自動で入る。ねじれは 1 mm 上がるごとに画像を何度回すか（模様が斜めに流れる）。フェードは貼る範囲の下端・上端からその長さで深さを 0 からなめらかに立ち上げる（模様の切れ目が段差にならない）。「壁の下は変調なし」もかかる。</div>`; }
 function css(){ const st=document.createElement('style'); st.textContent='.bmpprev{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:#000;image-rendering:pixelated;margin:4px 0}'; document.head.appendChild(st); }
 function readUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; S[k]= el.type==='checkbox'? el.checked : el.tagName==='SELECT'? el.value : +el.value; } if(S.z1<=S.z0) S.z1=Math.min(100,S.z0+5); }
 function writeUI(){ for(const [id,k] of Object.entries(IDS)){ const el=$(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!S[k]; else el.value=S[k]; const v=$(id+'V'); if(v) v.textContent= k==='amp'? (+S[k]).toFixed(2) : k==='tw'? (+S[k]).toFixed(1) : String(S[k]); } }
@@ -713,13 +713,16 @@ function sample(kind){ const w=240,h=160; const cv=document.createElement('canva
     for(let j=0;j<6;j++) for(let i=0;i<12;i++){ c.save(); c.translate((i+(j%2)*0.5)*w/12+w/24,j*h/6+h/12); c.fillStyle=g; c.beginPath(); c.arc(0,0,11,0,6.283); c.fill(); c.restore(); } }
   else { const im=c.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const v=0.5+0.5*Math.sin((x*2*Math.PI/w)*6+(y/h)*2*Math.PI*2); const k=(y*w+x)*4; im.data[k]=im.data[k+1]=im.data[k+2]=Math.round(v*255); im.data[k+3]=255; } c.putImageData(im,0,0); }
   setImage(kind==='dots'?'サンプル（ドット）':'サンプル（斜めの波）',cv); }
+// fade in/out at the bottom and the rim so the wall starts and ends on the plain outline (an abrupt bump on the
+// first wall layer overhangs the floor). Set once when an image is loaded, only if both fades are still 0.
+function autoFade(){ if(S.fadeLo===0&&S.fadeHi===0){ S.fadeLo=S.fadeHi=Math.max(5,Math.ceil(S.amp*4)); } }
 function mount(container,cb){ if(!container) return; onChange=cb||onChange; css(); container.innerHTML=html(); writeUI();
   for(const id of Object.keys(IDS)){ const el=$(id); const ev=(el.type==='range')?'input':'change';
     el.addEventListener(ev,()=>{ const before=[S.blur,S.inv]; readUI(); writeUI(); if(before[0]!==S.blur||before[1]!==S.inv){ process(); preview(); } onChange(); }); }
   $('bmpLoad').onclick=()=>$('bmpIn').click();
-  $('bmpIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>loadURL(f.name,r.result,()=>{ if(!S.on){ S.on=true; writeUI(); } onChange(); }); r.readAsDataURL(f); });
-  $('bmpSampleDots').onclick=()=>{ sample('dots'); if(!S.on){ S.on=true; writeUI(); } onChange(); };
-  $('bmpSampleWave').onclick=()=>{ sample('wave'); if(!S.on){ S.on=true; writeUI(); } onChange(); };
+  $('bmpIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>loadURL(f.name,r.result,()=>{ if(!S.on) S.on=true; autoFade(); writeUI(); onChange(); }); r.readAsDataURL(f); });
+  $('bmpSampleDots').onclick=()=>{ sample('dots'); if(!S.on) S.on=true; autoFade(); writeUI(); onChange(); };
+  $('bmpSampleWave').onclick=()=>{ sample('wave'); if(!S.on) S.on=true; autoFade(); writeUI(); onChange(); };
   preview(); }
 // displacement (mm, + = outward) for a wall point at angle theta (rad, around the section centre) and height z (mm)
 function disp(theta,z,zWall,H){ if(!S.on||!proc||!S.amp) return 0; const zA=zWall+(H-zWall)*S.z0/100, zB=zWall+(H-zWall)*S.z1/100; if(z<zA||z>zB||zB<=zA) return 0;
