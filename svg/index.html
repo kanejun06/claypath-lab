@@ -251,7 +251,7 @@ details summary{cursor:pointer;color:var(--fg2);font-size:12px}
         <div class="row"><label for="travelF">移動速度</label><input id="travelF" type="number" step="5" min="5" max="200" value="60"><span class="unit">mm/s</span></div>
         <div class="row"><label for="hop">持ち上げ高さ</label><input id="hop" type="number" step="0.5" min="0" max="10" value="1"><span class="unit">mm</span></div>
         <div class="row"><label for="bedX">ベッド中心 X / Y</label><input id="bedX" type="number" step="1" min="0" max="400" value="150"><input id="bedY" type="number" step="1" min="0" max="400" value="150"><span class="unit">mm</span></div>
-        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（外側6mm）</label></div>
+        <div class="row"><label class="toggle"><input id="skirt" type="checkbox" checked>スカート1周（形の外側6mm）</label></div>
         <div class="note" style="margin-top:6px">開始コード（Cura「3040_case1」から転記）</div>
         <textarea id="gStart" rows="8">G90 ;absolute positioning
 G92 Z0 ;current needle height is Z zero
@@ -439,6 +439,17 @@ function clipToPoly(pts,poly){ const P2=poly.pts, n=P2.length; const out=[]; let
     for(let i=1;i<ts.length;i++){ const t0=ts[i-1],t1=ts[i]; if(t1-t0<1e-9) continue; const mid=at((t0+t1)/2);
       if(inPoly(mid,P2)){ if(!cur.length) cur.push(at(t0)); cur.push(at(t1)); } else flush(); } }
   flush(); return out; }
+// skirt: the convex outline of everything printed, pushed out by `o` mm (round frame -> round skirt, rect -> rounded rect)
+function skirtLoop(pts,o){ const P0=[]; const n=24; for(const r of pts){ if(r.travel) continue; P0.push([r.X,r.Y]); }
+  if(P0.length<3){ return [[-o,-o],[o,-o],[o,o],[-o,o],[-o,-o]]; }
+  const hull=(a)=>{ a=a.slice().sort((p,q)=>p[0]-q[0]||p[1]-q[1]); const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]); const lo=[],up=[];
+    for(const p of a){ while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
+    for(let i=a.length-1;i>=0;i--){ const p=a[i]; while(up.length>1&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p); }
+    lo.pop(); up.pop(); return lo.concat(up); };
+  const h=hull(P0); const ring=[]; for(const p of h) for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; ring.push([p[0]+o*Math.cos(a),p[1]+o*Math.sin(a)]); }
+  let sk=hull(ring); // counter-clockwise; start at the lowest point
+  let i0=0; for(let i=1;i<sk.length;i++) if(sk[i][1]<sk[i0][1]-1e-9||(Math.abs(sk[i][1]-sk[i0][1])<1e-9&&sk[i][0]<sk[i0][0])) i0=i;
+  sk=sk.slice(i0).concat(sk.slice(0,i0)); sk.push(sk[0]); return sk; }
 function genFrame(){ if(P.frameMode==='rect'){ const w=P.frameW/2, h=P.frameD/2, r=Math.max(0,Math.min(P.frameR,w,h)); let pts;
     if(r<0.01) pts=[[-w,-h],[w,-h],[w,h],[-w,h]];
     else { pts=[]; const cs=[[w-r,-h+r,-90],[w-r,h-r,0],[-w+r,h-r,90],[-w+r,-h+r,180]]; const n=Math.max(4,Math.ceil(r*Math.PI/2/0.8)); for(const [x,y,a0] of cs) for(let k=0;k<=n;k++){ const a=(a0+90*k/n)*Math.PI/180; pts.push([x+r*Math.cos(a),y+r*Math.sin(a)]); } }
@@ -694,7 +705,7 @@ function gcode(M){ /* M (optional): filled with the G-code line number of every 
     `; est. time ${fmtTime(p.time)}  extrude ${(p.lenP/1000).toFixed(2)}m  hops ${p.hops}`];
   if(window.ClayPrinter&&ClayPrinter.PROFILE_ID!=='clay3040') out.push('; machine '+ClayPrinter.PROFILE.name);
   out.push(`; first layer flow x${P.eFirst}`); out.push($('gStart').value.trim()); let E=0;
-  if(P.skirt){ const o=MP.skirtOff, x0=bb.mn[0]-o,x1=bb.mx[0]+o,y0=bb.mn[1]-o,y1=bb.mx[1]+o; const sk=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
+  if(P.skirt){ const sk=skirtLoop(p.pts,MP.skirtOff); const x0=sk[0][0], y0=sk[0][1];
     out.push(';TYPE:SKIRT', `G1 F${Math.round(MP.zF*60)} Z${f3(lh+P.hop)}`, `G0 F${tf} X${X(x0)} Y${Y(y0)}`, `G1 F${Math.round(MP.zF*60)} Z${f3(lh)}`, `G1 F${Math.round(MP.retractF*60)} E${f3(E)}`, `G1 F${Math.round(P.vFirst*60)}`);
     for(let i=1;i<sk.length;i++){ E+=D(sk[i],sk[i-1])*ePerMm*P.eFirst; out.push(`G1 X${X(sk[i][0])} Y${Y(sk[i][1])} E${f3(E)}`); } }
   let lastF=-1,lastL=-1,lastK='',gl=false;
