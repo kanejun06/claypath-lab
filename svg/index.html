@@ -352,9 +352,22 @@ function parseSVG(text){ readP();
     let mmu = (hasVB && wmm)? wmm/vb.width : pxmm; const unitNote = (hasVB&&wmm)? `width ${svg.getAttribute('width')}` : `${P.pxUnit==='mm'?'1単位＝1mm':P.pxUnit==='72'?'1単位＝1pt':'96dpi'}`;
     mmu*=P.scale/100;
     const skip=new Set(['defs','clippath','mask','symbol','marker','pattern','lineargradient','radialgradient','text','style','metadata','title','desc']);
-    const items=[]; let nUse=0,nText=0,nImg=0; const stepU=P.step/mmu;
-    const walk=(el)=>{ for(const c of el.children){ const t=c.nodeName.toLowerCase(); if(t==='use'){nUse++;continue;} if(t==='text'){nText++;continue;} if(t==='image'){nImg++;continue;} if(skip.has(t)) continue;
-        const cs=getComputedStyle(c); if(cs.display==='none'||c.getAttribute('display')==='none') continue;
+    const items=[]; let nUse=0,nText=0,nImg=0,nHide=0,useDepth=0; const stepU=P.step/mmu;
+    // <use> (Illustrator symbols, brushes): replace it with a copy of what it points to, then read that copy
+    const expandUse=(u)=>{ const href=u.getAttribute('href')||u.getAttributeNS('http://www.w3.org/1999/xlink','href')||''; const tgt=href.startsWith('#')? svg.querySelector('[id="'+CSS.escape(href.slice(1))+'"]') : null;
+      if(!tgt||useDepth>8) return null; const NS='http://www.w3.org/2000/svg'; const g=document.createElementNS(NS,'g');
+      const tr=(u.getAttribute('transform')||'')+` translate(${parseFloat(u.getAttribute('x'))||0} ${parseFloat(u.getAttribute('y'))||0})`; g.setAttribute('transform',tr.trim());
+      for(const a of ['style','class','fill','stroke','stroke-width']) if(u.hasAttribute(a)) g.setAttribute(a,u.getAttribute(a));
+      const tt=tgt.nodeName.toLowerCase();
+      if(tt==='symbol'){ const vbs=tgt.getAttribute('viewBox'); const inner=document.createElementNS(NS,'g');
+        if(vbs){ const v=vbs.trim().split(/[\s,]+/).map(Number); const w=parseFloat(u.getAttribute('width'))||v[2], h=parseFloat(u.getAttribute('height'))||v[3]; const k=Math.min(w/v[2],h/v[3]); inner.setAttribute('transform',`scale(${k}) translate(${-v[0]} ${-v[1]})`); }
+        for(const ch of tgt.children) inner.appendChild(ch.cloneNode(true)); g.appendChild(inner); }
+      else { const cl=tgt.cloneNode(true); cl.removeAttribute('id'); g.appendChild(cl); }
+      u.parentNode.replaceChild(g,u); return g; };
+    const walk=(el)=>{ for(const c of [...el.children]){ const t=c.nodeName.toLowerCase();
+        if(t==='use'){ const g=expandUse(c); if(!g){ nUse++; continue; } useDepth++; walk(g); useDepth--; continue; }
+        if(t==='text'){nText++;continue;} if(t==='image'){nImg++;continue;} if(skip.has(t)) continue;
+        const cs=getComputedStyle(c); if(cs.display==='none'||c.getAttribute('display')==='none'){ nHide++; continue; }
         if(t==='g'||t==='a'||t==='svg'&&c!==svg){ walk(c); continue; } shape(c,t,cs); } };
     const matOf=(el)=>{ let m=new DOMMatrix(); let n=el; while(n&&n!==svg){ const tl=n.transform&&n.transform.baseVal; if(tl&&tl.numberOfItems){ const c=tl.consolidate(); if(c){ const q=c.matrix; m=new DOMMatrix([q.a,q.b,q.c,q.d,q.e,q.f]).multiply(m); } } n=n.parentNode; } return m; };
     const add=(el,cs,pts,closed)=>{ const m=matOf(el); const det=Math.sqrt(Math.abs(m.a*m.d-m.b*m.c));
@@ -378,7 +391,8 @@ function parseSVG(text){ readP();
       else if(t==='circle'||t==='ellipse'){ const cx=num(el,'cx'),cy=num(el,'cy'); const rx=t==='circle'?num(el,'r'):num(el,'rx'), ry=t==='circle'?rx:num(el,'ry'); const n=Math.max(24,Math.ceil(2*Math.PI*Math.max(rx,ry)/stepU)); const pts=[]; for(let k=0;k<n;k++){ const a=2*Math.PI*k/n; pts.push([cx+rx*Math.cos(a),cy+ry*Math.sin(a)]); } add(el,cs,pts,true); }
     }
     walk(svg);
-    if(!items.length) throw new Error('線が見つかりませんでした（文字や画像、use は読みません）');
+    if(!items.length){ const why=[]; if(nText) why.push(`文字 ${nText} 個（書式 › アウトラインを作成）`); if(nImg) why.push(`画像 ${nImg} 個（画像トレースして「拡張」）`); if(nUse) why.push(`読めないシンボル ${nUse} 個（シンボルへのリンクを解除）`); if(nHide) why.push(`非表示 ${nHide} 個（表示してから書き出す）`);
+      throw new Error('線が見つかりませんでした。'+(why.length? '読まなかったもの：'+why.join('、')+'。直してから SVG を書き出し直してください' : 'SVG の中に線や図形（path・line・rect・circle など）がありません')); }
     // centre on origin
     let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; for(const it of items) for(const p of it.pts){ mnx=Math.min(mnx,p[0]); mny=Math.min(mny,p[1]); mxx=Math.max(mxx,p[0]); mxy=Math.max(mxy,p[1]); }
     const ccx=(mnx+mxx)/2, ccy=(mny+mxy)/2; for(const it of items) for(const p of it.pts){ p[0]-=ccx; p[1]-=ccy; }
@@ -565,7 +579,7 @@ function renderStats(){ const p=path, c=checks; $('timeBig').innerHTML=`${fmtTim
   if(P.rot && P.rotTarget==='lines' && p.rot.cover){ const cv=p.rot.cover; add(cv.ok?'':'bad', cv.ok? `模様は回転の中心から ${cv.reach.toFixed(0)} mm まであり、枠の一番遠い所（${cv.rf.toFixed(0)} mm）を覆う。回しても枠の中は抜けない` : `回すと枠の角のあたりが抜ける：模様は中心から ${cv.reach.toFixed(0)} mm まで、枠の一番遠い所は ${cv.rf.toFixed(0)} mm。模様を直径 ${Math.ceil(cv.rf*2)} mm の円を覆う大きさに広げる`); }
   if(P.frameMode==='svg' && !src.items.some(i=>i.closed)) add('mid','SVGに閉じた形がないので枠なし。「枠」で角か丸を選ぶと、アプリが枠をつくって模様を切る');
   const ext=Math.max(bb.mx[0]-bb.mn[0],bb.mx[1]-bb.mn[1]); if(ext>Math.min(MP.build.x,MP.build.y)-20) add('bad',`大きさ ${ext.toFixed(0)} mm はベッドに収まらない可能性`);
-  if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・use ${src.nUse}・画像 ${src.nImg}（アウトライン化して読み込む）`);
+  if(src.nText||src.nUse||src.nImg) add('mid',`読まなかった要素：文字 ${src.nText}・シンボル ${src.nUse}・画像 ${src.nImg}（文字はアウトライン化、シンボルはリンクを解除して書き出し直す）`);
   if(P.useSW){ const sws=src.items.filter(i=>!i.closed).map(i=>i.sw); if(sws.length) add('',`線の太さ：${Math.min(...sws).toFixed(2)}〜${Math.max(...sws).toFixed(2)} mm → 倍率 ×${swM({sw:Math.min(...sws)}).toFixed(2)}〜×${swM({sw:Math.max(...sws)}).toFixed(2)}`); }
   $('warns').innerHTML=W.join(''); }
 
