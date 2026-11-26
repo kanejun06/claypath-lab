@@ -719,8 +719,8 @@ function splitPath(d){
 }
 function polyFromD(d){ const out=[]; const re=/[ML]([-+\d.eE]+) ([-+\d.eE]+)/g; let m; while((m=re.exec(d))) out.push([+m[1],+m[2]]); return out; }
 function rdp(pts,eps){ if(pts.length<3) return pts; const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1; const st=[[0,pts.length-1]];
-  while(st.length){ const [a,b]=st.pop(); let md=0,mi=-1; const A=pts[a],B=pts[b]; const dx=B[0]-A[0],dy=B[1]-A[1]; const L=Math.hypot(dx,dy)||1e-9;
-    for(let k=a+1;k<b;k++){ const d=Math.abs((pts[k][0]-A[0])*dy-(pts[k][1]-A[1])*dx)/L; if(d>md){md=d;mi=k;} } if(md>eps){ keep[mi]=1; st.push([a,mi],[mi,b]); } }
+  while(st.length){ const [a,b]=st.pop(); let md=0,mi=-1; const A=pts[a],B=pts[b]; const dx=B[0]-A[0],dy=B[1]-A[1]; const L=Math.hypot(dx,dy);
+    for(let k=a+1;k<b;k++){ const d= L>1e-6? Math.abs((pts[k][0]-A[0])*dy-(pts[k][1]-A[1])*dx)/L : Math.hypot(pts[k][0]-A[0],pts[k][1]-A[1]); /* closed loop: ends coincide, use the distance from the end */ if(d>md){md=d;mi=k;} } if(md>eps){ keep[mi]=1; st.push([a,mi],[mi,b]); } }
   return pts.filter((_,k)=>keep[k]); }
 
 function parseSVG(text){ readP();
