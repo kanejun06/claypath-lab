@@ -980,15 +980,15 @@ $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
 let defaults=null; // snapshot right after start-up
 const TKEYS=['gStart','gEnd'];
 function settingsObj(){ const o=snap(); const svg={}; for(const sd of ['b','t']){ const v=o.svg[sd]; svg[sd]= v? {name:v.name,loop:v.loop.map(p=>[p[0],p[1]])} : null; }
-  delete o.svg; return {app:'ClayMorph Lab',version:1,saved:new Date().toISOString(),settings:o,svg,text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),bump:window.ClayBump?ClayBump.state():null,machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null}; }
+  delete o.svg; return {app:'ClayMorph Lab',version:1,saved:new Date().toISOString(),settings:o,svg,text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),bump:window.ClayBump?ClayBump.state():null,machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null,machineKey:window.ClayPrinter?ClayPrinter.key():null}; }
 $('btnSetSave').onclick=async()=>{ const r=await ClaySettings.saveText(ClaySettings.safe($('fname').value)+'_settings','json',JSON.stringify(settingsObj(),null,1)); setSetMsg(r.msg,r.ok?'ok':'err'); };
 $('btnSetLoad').onclick=()=>$('setIn').click();
 $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   ClaySettings.readFile(f,'ClayMorph Lab',(o,err)=>{ if(err){ setSetMsg(err,'err'); return; }
     const svg={}; for(const sd of ['b','t']){ const v=o.svg&&o.svg[sd]; svg[sd]= v&&v.loop&&v.loop.length>2 ? {name:v.name||'saved.svg',loop:v.loop,id:++svgSeq} : null; }
     for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
-    record(); applying=true; applySnap(Object.assign({},o.settings,{svg})); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record();
-    setSetMsg(`${f.name} を読み込みました${svg.b||svg.t?'（SVG も復元）':''}`,'ok'); }); });
+    record(); applying=true; applySnap(Object.assign({},o.settings,{svg})); const mNote=window.ClayPrinter? ClayPrinter.adopt(o) : ''; if(mNote) reslice(); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record();
+    setSetMsg(`${f.name} を読み込みました${svg.b||svg.t?'（SVG も復元）':''}${mNote}`,'ok'); }); });
 ClaySettings.twoStep($('btnSetReset'),'リセット','もう一度押すとリセット',()=>{ record(); applying=true; applySnap(Object.assign({},defaults,{svg:{b:svgShapes.b,t:svgShapes.t}})); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); });
 // shortcuts: leave text areas and the file-name box to the browser's own undo
 document.addEventListener('keydown',e=>{ const mod=e.metaKey||e.ctrlKey; if(!mod) return; const t=e.target; const native = t && (t.tagName==='TEXTAREA' || (t.tagName==='INPUT' && t.type==='text'));

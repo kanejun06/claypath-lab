@@ -693,7 +693,7 @@ const later=()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); };
 for(const ev of ['input','change','pointerup','click','dblclick','keyup']) $('left').addEventListener(ev,later);
 $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
 $('btnSetSave').onclick=async()=>{ const withStl=$('setStl').checked && stlSrc;
-  const o={app:'ClayPath Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null, bump:window.ClayBump?ClayBump.state():null,
+  const o={app:'ClayPath Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null, machineKey:window.ClayPrinter?ClayPrinter.key():null, bump:window.ClayBump?ClayBump.state():null,
     stl: withStl? {name:stlSrc.name, base64:ClaySettings.toB64(stlSrc.buf)} : (stlSrc? {name:stlSrc.name}:null)};
   const r=await ClaySettings.saveText(ClaySettings.safe($('fname').value)+'_settings','json',JSON.stringify(o,null,1)); setSetMsg(r.msg+(withStl?'（STL 込み）':''),r.ok?'ok':'err'); };
 $('btnSetLoad').onclick=()=>$('setIn').click();
@@ -703,7 +703,7 @@ $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.va
     if(o.stl&&o.stl.base64){ try{ loadBuffer(ClaySettings.fromB64(o.stl.base64),o.stl.name||'saved.stl'); stlMsg='（STL も復元）'; }catch(_){ stlMsg='（STL は読めませんでした）'; } }
     else if(o.stl&&o.stl.name) stlMsg=`（STL は入っていません。${o.stl.name} を読み込んでください）`;
     for(const k of TKEYS) if(o.text&&typeof o.text[k]==='string') $(k).value=o.text[k];
-    applySnap(o.settings); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record(); setSetMsg(`${f.name} を読み込みました${stlMsg}`,'ok'); }); });
+    applySnap(o.settings); const mNote=window.ClayPrinter? ClayPrinter.adopt(o) : ''; if(mNote) reslice(); if(window.ClayBump) ClayBump.setState(o.bump||null,()=>recompute()); applying=false; record(); setSetMsg(`${f.name} を読み込みました${stlMsg}${mNote}`,'ok'); }); });
 let defaults=snap(); hist.cur=null; record();
 if(window.ClayTemplates) ClayTemplates.mount($('btnSetReset'),'path',t=>{ const base=JSON.parse(JSON.stringify(defaults)); Object.assign(base.v,t.v||{}); if(t.c) Object.assign(base.c,t.c); base.b=Object.assign({},defaults.b||{},t.b||{}); base.r=Object.assign({},defaults.r||{},t.r||{});
   record(); applying=true; applySnap(base); if(t.bumpSample&&window.ClayBump) ClayBump.sampleImage(t.bumpSample); applying=false; recompute(); record(); setSetMsg(`作例「${t.name}」を開きました（${t.desc}。⌘Z で元に戻せます）`,'ok'); });

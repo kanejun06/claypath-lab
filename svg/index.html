@@ -769,7 +769,7 @@ function setSetMsg(t,cls){ const m=$('setMsg'); m.textContent=t; m.className='ms
 for(const k of SKEYS){ const el=$(k); if(!el) continue; el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',()=>{ clearTimeout(histTimer); histTimer=setTimeout(record,400); }); }
 $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
 // save: settings + G-code start/end + the SVG itself, as one JSON file
-$('btnSetSave').onclick=()=>{ const o={app:'ClayLine Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),svg:svgText?{name:svgName,text:svgText}:null};
+$('btnSetSave').onclick=()=>{ const o={app:'ClayLine Lab',version:1,saved:new Date().toISOString(),settings:snap(),text:Object.fromEntries(TKEYS.map(k=>[k,$(k).value])),svg:svgText?{name:svgName,text:svgText}:null,machine:window.ClayPrinter?ClayPrinter.PROFILE.name:null,machineKey:window.ClayPrinter?ClayPrinter.key():null};
   saveText(safe($('fname').value)+'_settings','json',JSON.stringify(o,null,1)).then(()=>setSetMsg($('msg').textContent,$('msg').className.replace('msg','').trim())); };
 $('btnSetLoad').onclick=()=>$('setIn').click();
 $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>{ let o; try{ o=JSON.parse(r.result); }catch(err){ setSetMsg('設定ファイルとして読めませんでした（JSON ではありません）','err'); return; }
@@ -777,7 +777,8 @@ $('setIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.va
     record(); applying=true;
     if(o.svg&&o.svg.text){ try{ svgText=o.svg.text; svgName=o.svg.name||'saved.svg'; }catch(_){} }
     applySnap(Object.assign({},o.settings,o.text||{}),true); if(o.svg&&o.svg.text){ $('fname').value=safe(svgName.replace(/\.svg$/i,'')); sph.th=-1.25; sph.ph=0.9; fit(); }
-    applying=false; record(); setSetMsg(`${f.name} を読み込みました${o.svg?'（SVG も復元）':''}`,'ok'); }; r.readAsText(f); });
+    const mNote=window.ClayPrinter? ClayPrinter.adopt(o) : ''; if(mNote&&svgText) loadText(svgText,svgName,false);
+    applying=false; record(); setSetMsg(`${f.name} を読み込みました${o.svg?'（SVG も復元）':''}${mNote}`,'ok'); }; r.readAsText(f); });
 // reset: two-step button (no confirm dialog in the viewer)
 let resetArm=0; $('btnSetReset').onclick=()=>{ const b=$('btnSetReset'); if(!resetArm){ b.classList.add('armed'); b.textContent='もう一度押すとリセット'; resetArm=setTimeout(()=>{ b.classList.remove('armed'); b.textContent='リセット'; resetArm=0; },3000); return; }
   clearTimeout(resetArm); resetArm=0; b.classList.remove('armed'); b.textContent='リセット'; record(); applying=true; applySnap(Object.assign({},defaults.s,defaults.t),true); applying=false; record(); setSetMsg('設定を最初の値に戻しました（元に戻す ⌘Z で取り消せます）','ok'); };

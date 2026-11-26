@@ -94,7 +94,12 @@ const teacher=/[?&#]teacher\b/.test(location.search+location.hash);
 // Turned on with the header checkbox or ?clayscale; remembered per browser.
 const CLAY=PROFILES.clay3040;
 const VOL_MAX=20; // mm³/s: keep the scaled model's bead (thicker layers) under what the hotend melts
-const scaleK=()=>PROFILE.lineW/CLAY.lineW;
+// Klipper refuses (stops the print) any move whose bead is thicker than max_extrude_cross_section, which defaults to
+// 4 × nozzle_diameter² = 0.64 mm² for the 0.4 mm nozzle the printer is configured with (2026-11-26: a 1.0 mm clay-scale file,
+// 1.1 × 0.66 mm at flow 0.884 = 0.642 mm², stopped the Ender-3 V3). Keep every extruding move under CROSS_MAX mm².
+const CROSS_MAX=0.60;
+// clay-scale factor: the Ender line width over the clay one, but small enough that the scaled clay bead stays under CROSS_MAX
+const scaleK=()=>Math.min(PROFILE.lineW/CLAY.lineW, Math.sqrt(CROSS_MAX*0.97/(CLAY.lineW*CLAY.layerH*(PROFILE.eMul||1))));
 let scaleOn=false;
 if(PROFILE.creality){ let v=null; try{ v=localStorage.getItem('clayScale'); }catch(e){} scaleOn=/[?&]clayscale\b/.test(location.search)||v==='1'; }
 function eff(){ if(!scaleOn) return PROFILE; const k=scaleK(), p=Object.assign({},PROFILE), r1=v=>Math.round(v*100)/100;
@@ -108,7 +113,7 @@ function setValues(){ const $=id=>document.getElementById(id); const PR=eff();
     if(!teacher){ el.disabled=true; el.title='機械の設定（変更は教員のみ）'; el.classList.add('locked'); } } }
 function setScale(on){ scaleOn=!!on; try{ localStorage.setItem('clayScale',scaleOn?'1':'0'); }catch(e){}
   try{ const q=new URLSearchParams(location.search); if(scaleOn) q.set('clayscale',''); else q.delete('clayscale'); history.replaceState(null,'',location.pathname+'?'+q.toString().replace(/clayscale=(&|$)/,'clayscale$1')+location.hash); }catch(e){}
-  setValues(); for(const id of LOCK){ const el=document.getElementById(id); if(!el) continue; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+  setValues(); applySoft(true); for(const id of LOCK){ const el=document.getElementById(id); if(!el) continue; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
   scaleUI(); }
 // In clay-scale mode the machine fields hold clay-size values; show what the printer really does next to them.
 const REAL={lineW:'mm', layerH:'mm', baseF:'mm/s', vFirst:'mm/s', travelF:'mm/s', bedX:''};
@@ -125,9 +130,28 @@ function scaleUI(){ realNotes(); if(!scaleBox) return; const k=scaleK(); scaleBo
 function scaleControl(){ const lab=document.createElement('label'); lab.className='mscale';
   lab.title=`粘土（線幅 ${CLAY.lineW} mm・層高 ${CLAY.layerH} mm）で刷るつもりで形を作り、PLA ではそれを ×${scaleK().toFixed(2)} に縮めて刷ります。線幅・層高・形を同じ倍率で縮めるので、層の数・壁の太さの比率・張り出しの角度が粘土と同じになります。画面の大きさ・線幅・層高は粘土の値で、印刷速度の欄は「実際の速度 ÷ ${scaleK().toFixed(2)}」です（予想時間は実際の時間）。PLA はすぐ固まるので、柔らかさによる崩れは再現しません。`;
   const cb=document.createElement('input'); cb.type='checkbox'; cb.onchange=()=>setScale(cb.checked); lab.append(cb,document.createElement('span')); scaleBox=lab; scaleUI(); return lab; }
+// Machine-tuned page values that are not locked (bottom fill spacing, slope compensation, overhang warning angle).
+// In clay-scale mode the page works as the clay machine, so it uses the clay machine's values.
+const SOFT_KEYS=[...new Set(Object.values(PROFILES).flatMap(p=>Object.keys(p.soft||{})))];
+const softOf=()=> (scaleOn? CLAY.soft : PROFILE.soft)||{};
+function applySoft(fire){ const sv=softOf();
+  for(const id of SOFT_KEYS){ const el=document.getElementById(id); if(!el) continue; const v= id in sv? sv[id] : (el.type==='checkbox'? el.defaultChecked : el.defaultValue);
+    if(el.type==='checkbox') el.checked=!!v; else el.value=v;
+    if(fire){ el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); } } }
+// which machine a settings file was made for: profile id, plus "+clayscale" when the Ender printed at clay scale
+const key=()=>PROFILE_ID+(scaleOn?'+clayscale':'');
+const keyOfFile=o=>{ if(!o) return null; if(o.machineKey) return o.machineKey; if(!o.machine) return null;
+  const id=Object.keys(PROFILES).find(k=>PROFILES[k].name===o.machine); return id||null; };
+// clay3040 and Ender-at-clay-scale design the same clay print, so their files carry over as they are
+const family=k=> k==='clay3040'||/\+clayscale$/.test(k||'')? 'clay' : k;
+// after loading a settings file made on another machine: keep this machine's tuned values (the file's are for that machine).
+// Returns a note for the page's message, or ''.
+function adopt(o){ const fk=keyOfFile(o); if(!fk||fk===key()) return '';
+  applySoft(false); const fn=PROFILES[fk.replace(/\+clayscale$/,'')];
+  return `（${fn?fn.short:fk}${/\+clayscale$/.test(fk)?'・粘土の縮尺':''} の設定。機械の値はこの機械のものを使う${family(fk)===family(key())?'':'。大きさや太さの感じが変わる場合がある'}）`; }
 let applied=false;
 function apply(){ setValues(); if(applied) return; applied=true;
-  for(const [id,v] of Object.entries(PROFILE.soft||{})){ const el=document.getElementById(id); if(!el) continue; if(el.type==='checkbox') el.checked=!!v; else el.value=v; }
+  applySoft(false);
   const st=document.createElement('style'); st.textContent='.locked{opacity:.65;cursor:not-allowed}.mbanner{font-size:11px;padding:1px 7px;white-space:nowrap;align-self:center;border-radius:4px;border:1px solid var(--line);color:var(--fg2)}.mbanner.t{border-color:var(--warn);color:var(--warn)}.mscale{font-size:11px;display:inline-flex;gap:4px;align-items:center;align-self:center;white-space:nowrap;padding:1px 7px;border-radius:4px;border:1px solid var(--line);color:var(--fg2);cursor:pointer}.mscale.on{border-color:var(--acc,#2a6);color:var(--fg)}.row:has(>.mreal){flex-wrap:wrap;row-gap:0}.mreal{flex-basis:100%;text-align:right;font-size:11px;color:var(--acc,#2a6);margin-top:-2px}'; document.head.appendChild(st);
   const hd=document.querySelector('header'); if(hd){ const b=document.createElement('span'); b.className='mbanner'+(teacher?' t':'');
     if(teacher){ b.append('教員モード：機械の設定を変更できます（このタブだけ。再読み込みで元の値に戻る）　機械：');
@@ -178,12 +202,26 @@ function scaleMoves(L,k){ const k3=k*k*k; let te=0, ne=0, debt=0, rel=false; con
 function finalize(text,M){ if(!PROFILE.creality) return text;
   const ascii=t=>t.replace(/(\d+)時間/g,'$1h ').replace(/(\d+)分/g,'$1min').replace(/[^\x09\x0a\x0d\x20-\x7e]/g,'');
   let L=text.split('\n').map(l=>{ if(!/[^\x00-\x7f]/.test(l)) return l; const k=l.indexOf(';'); return k<0? ascii(l) : l.slice(0,k)+ascii(l.slice(k)); });
-  if(scaleOn){ const k=scaleK(); L=scaleMoves(L,k); const i=L.findIndex(l=>/^G[01]\b/.test(l)); L.splice(Math.max(0,i),0,`; clay scale x${k.toFixed(4)}: clay-size design (line ${CLAY.lineW} mm, layer ${CLAY.layerH} mm) printed as a PLA model (line ${PROFILE.lineW} mm, layer ${(CLAY.layerH*k).toFixed(3)} mm)`);
+  if(scaleOn){ const k=scaleK(); L=scaleMoves(L,k); const i=L.findIndex(l=>/^G[01]\b/.test(l)); L.splice(Math.max(0,i),0,`; clay scale x${k.toFixed(4)}: clay-size design (line ${CLAY.lineW} mm, layer ${CLAY.layerH} mm) printed as a PLA model (line ${(CLAY.lineW*k).toFixed(2)} mm, layer ${(CLAY.layerH*k).toFixed(3)} mm)`);
     if(M&&M.length) for(let j=0;j<M.length;j++) if(typeof M[j]==='number'&&M[j]>=i) M[j]++; }
   if(PROFILE.maxF){ const fm=Math.round(PROFILE.maxF*60); // cap printing speed: F on extruding XY moves and on bare "G1 F" lines (they set the speed for the extrusion that follows)
     L=L.map(l=>{ const c=l.indexOf(';'), cmd=c<0?l:l.slice(0,c); if(!/^G[01]\b/.test(cmd)||!/ F[\d.]/.test(cmd)) return l;
       const xy=/ [XY]-?[\d.]/.test(cmd), e=/ E-?[\d.]/.test(cmd), z=/ Z-?[\d.]/.test(cmd); if(!((xy&&e)||(!xy&&!e&&!z))) return l;
       return l.replace(/ F([\d.]+)/,(m,v)=>' F'+Math.min(+v,fm)); }); }
+  { // cap the bead cross-section of every extruding move (see CROSS_MAX); absolute E is rewritten so later moves stay consistent
+    const A=Math.PI*(PROFILE.filD/2)**2; let x=0,y=0,z=0,te=0,ne=0,rel=false,nCap=0,worst=0;
+    L=L.map(l=>{ const c=l.indexOf(';'); const cmd=c<0?l:l.slice(0,c), com=c<0?'':l.slice(c);
+      if(/^M83\b/.test(cmd)) rel=true; else if(/^M82\b/.test(cmd)) rel=false;
+      if(rel||!/^G(?:92|[01])\b/.test(cmd)) return l;
+      if(/^G92\b/.test(cmd)){ const m=cmd.match(/ E(-?[\d.]+)/); if(m){ te=ne=+m[1]; } return l; }
+      const g=a=>{ const m=cmd.match(new RegExp(' '+a+'(-?[\\d.]+)')); return m? +m[1] : null; };
+      const nx=g('X')??x, ny=g('Y')??y, nz=g('Z')??z, ev=g('E'); const len=Math.hypot(nx-x,ny-y,nz-z); x=nx; y=ny; z=nz;
+      if(ev===null) return l; let d=ev-te; te=ev;
+      if(d>0&&len>1e-6){ const cs=d*A/len; if(cs>worst) worst=cs; if(cs>CROSS_MAX){ d=CROSS_MAX*len/A; nCap++; } }
+      ne+=d; const out=cmd.replace(/ E-?[\d.]+/,' E'+(Math.abs(ne)<5e-4?0:ne).toFixed(4).replace(/0+$/,'').replace(/\.$/,''));
+      return out.trimEnd()+(com?(out.endsWith(' ')?'':' ')+com:''); });
+    if(nCap){ const i=L.findIndex(l=>/^G[01]\b/.test(l)); L.splice(Math.max(0,i),0,`; extrusion capped at ${CROSS_MAX} mm2 bead on ${nCap} moves (max ${worst.toFixed(3)}): Klipper max_extrude_cross_section`);
+      if(M&&M.length) for(let j=0;j<M.length;j++) if(typeof M[j]==='number'&&M[j]>=i) M[j]++; } }
   let layers=0, zmax=0, x0=1e9,y0=1e9,x1=-1e9,y1=-1e9, emax=0, mins=0;
   const segs=[]; let cx=0,cy=0,cz=0,ce=0;
   for(const l of L){ if(l.startsWith(';LAYER:')) layers++; if(!/^G[01] /.test(l)) continue;
@@ -200,5 +238,5 @@ function finalize(text,M){ if(!PROFILE.creality) return text;
   while(L.length&&L[L.length-1]==='') L.pop();
   const foot=['',`; filament used [mm] = ${f2(emax)}`,`; total layers count = ${layers}`,`; estimated printing time (normal mode) = ${Math.floor(mins/60)?Math.floor(mins/60)+'h ':''}${mins%60}m 0s`];
   return head.concat(L,foot).join('\n')+'\n'; }
-window.ClayPrinter={PROFILE, PROFILES, PROFILE_ID, LOCK, teacher, apply, reapply, finalize, scale:()=>scaleOn?scaleK():1, setScale};
+window.ClayPrinter={PROFILE, PROFILES, PROFILE_ID, LOCK, teacher, apply, reapply, adopt, key, finalize, scale:()=>scaleOn?scaleK():1, setScale};
 })();
